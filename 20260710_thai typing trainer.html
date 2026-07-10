@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Moonoi Monsoon — Thai Typing Trainer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Silkscreen&family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0f04; --bg2:#0d1407; --lime:#9FD92A; --lime-dim:#6b9418;
+    --ember:#ff8c2b; --ink:#dfe8c4; --muted:#7d8a5f;
+    --ok:#9FD92A; --ng:#ff5544; --panel:#121a09; --line:#2a3815;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:radial-gradient(120% 80% at 50% 0%, var(--bg2), var(--bg) 70%);
+    color:var(--ink); font-family:'Sarabun',sans-serif; min-height:100vh;
+    display:flex;flex-direction:column;align-items:center;
+    padding:24px 16px 60px; overflow-x:hidden;
+  }
+  .ember{position:fixed;bottom:-10px;width:3px;height:3px;border-radius:50%;
+    background:var(--ember);opacity:0;pointer-events:none;
+    box-shadow:0 0 6px 1px var(--ember);animation:rise linear infinite;z-index:0}
+  @keyframes rise{0%{transform:translateY(0) translateX(0);opacity:0}
+    10%{opacity:.7}90%{opacity:.5}
+    100%{transform:translateY(-100vh) translateX(var(--drift));opacity:0}}
+  .wrap{width:100%;max-width:680px;position:relative;z-index:1}
+  header{text-align:center;margin-bottom:22px}
+  .logo{font-family:'Silkscreen';color:var(--lime);font-size:13px;letter-spacing:2px;
+    text-shadow:0 0 10px rgba(159,217,42,.5)}
+  h1{font-family:'Silkscreen';font-size:26px;color:var(--lime);margin-top:4px;
+    text-shadow:0 0 14px rgba(159,217,42,.45);line-height:1.3}
+  .sub{color:var(--muted);font-size:13px;margin-top:8px;letter-spacing:.5px}
+
+  .panel{background:linear-gradient(180deg,var(--panel),#0c1206);
+    border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:16px;
+    box-shadow:0 6px 30px rgba(0,0,0,.4), inset 0 1px 0 rgba(159,217,42,.05)}
+
+  .imrow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+  .im{background:#0e1607;border:1px solid var(--line);border-radius:10px;padding:14px;
+    cursor:pointer;transition:.15s;text-align:center}
+  .im:hover{border-color:var(--lime-dim)}
+  .im.sel{border-color:var(--lime);box-shadow:0 0 0 1px var(--lime),0 0 16px rgba(159,217,42,.2)}
+  .im .it{font-size:14px;font-weight:700;margin-bottom:3px}
+  .im .id{font-size:11px;color:var(--muted);line-height:1.4}
+  .im .rec{font-family:'Silkscreen';font-size:9px;color:var(--ember);margin-top:5px;letter-spacing:1px}
+  .sectit{font-family:'Silkscreen';font-size:10px;color:var(--lime-dim);letter-spacing:1px;margin-bottom:8px}
+
+  .levels{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .lvl{background:#0e1607;border:1px solid var(--line);border-radius:10px;
+    padding:14px;cursor:pointer;transition:.15s;text-align:left}
+  .lvl:hover{border-color:var(--lime-dim);transform:translateY(-2px)}
+  .lvl.sel{border-color:var(--lime);box-shadow:0 0 0 1px var(--lime),0 0 18px rgba(159,217,42,.25)}
+  .lvl.dim{opacity:.45}
+  .lvl .ln{font-family:'Silkscreen';color:var(--lime);font-size:11px;letter-spacing:1px}
+  .lvl .lt{font-size:15px;font-weight:600;margin:4px 0 2px}
+  .lvl .ld{font-size:12px;color:var(--muted)}
+  .lvl .chars{font-size:18px;color:var(--ink);margin-top:6px;letter-spacing:3px}
+  .lvl .badge{font-size:11px;color:var(--muted);margin-top:6px}
+
+  .startbtn{display:block;width:100%;margin-top:16px;background:var(--lime);
+    color:#0a0f04;font-family:'Silkscreen';font-size:15px;letter-spacing:1px;
+    border:none;border-radius:10px;padding:15px;cursor:pointer;transition:.15s}
+  .startbtn:hover{box-shadow:0 0 22px rgba(159,217,42,.5);transform:translateY(-1px)}
+  .startbtn:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
+
+  .kbcheck{margin-top:16px;background:#0c1206;border:1px solid var(--line);
+    border-radius:10px;padding:16px;text-align:center}
+  .kbcheck.hidden{display:none}
+  .kbcheck .label{font-size:13px;color:var(--muted);margin-bottom:10px}
+  .kbcheck .testbox{font-size:15px;color:var(--ink);background:#0a0f04;
+    border:1px dashed var(--line);border-radius:8px;padding:12px;margin-bottom:8px;
+    min-height:46px;display:flex;align-items:center;justify-content:center;gap:8px}
+  .kbcheck .testbox .key{font-size:28px;font-weight:700;color:var(--lime)}
+  .kbcheck .state{font-family:'Silkscreen';font-size:12px;letter-spacing:1px}
+  .kbcheck .state.ok{color:var(--ok)}
+  .kbcheck .state.ng{color:var(--ng)}
+  .kbcheck .state.idle{color:var(--muted)}
+  .kbcheck .hintline{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5}
+
+  /* cumulative weak-key panel (start screen) */
+  .cumweak{margin-top:16px;background:#0c1206;border:1px solid var(--line);
+    border-radius:10px;padding:16px;display:none}
+  .cumweak.show{display:block}
+  .cumweak h3{font-size:13px;color:var(--ink);margin-bottom:10px;font-weight:600}
+  .cumweak .sub2{font-size:11px;color:var(--muted);margin-bottom:10px}
+
+  #game{display:none}
+  .hud{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;
+    font-family:'Silkscreen';font-size:12px;color:var(--muted)}
+  .hud .v{color:var(--lime)}
+  .hud .combo.hot{color:var(--ember);text-shadow:0 0 8px var(--ember)}
+
+  .timerbar{height:8px;background:#0e1607;border-radius:4px;overflow:hidden;margin-bottom:6px}
+  .timerbar .tf{height:100%;width:100%;
+    background:linear-gradient(90deg,var(--lime-dim),var(--lime));transition:width .25s linear}
+  .timerbar .tf.warn{background:linear-gradient(90deg,#b35a10,var(--ember))}
+  .timerbar .tf.crit{background:linear-gradient(90deg,#7a2010,var(--ng))}
+  .timertext{text-align:right;font-family:'Silkscreen';font-size:11px;color:var(--muted);margin-bottom:14px}
+  .timertext.crit{color:var(--ng)}
+
+  .progress{height:6px;background:#0e1607;border-radius:4px;overflow:hidden;margin-bottom:20px}
+  .progress .bar{height:100%;background:linear-gradient(90deg,var(--lime-dim),var(--lime));width:0;transition:width .25s}
+
+  .prompt{text-align:center;padding:30px 16px;border-radius:12px;
+    background:#0c1206;border:1px solid var(--line);margin-bottom:14px;position:relative;transition:.12s}
+  .prompt.shake{animation:shk .3s}
+  .prompt.flash{animation:fl .3s}
+  .prompt.timeout{animation:to .4s}
+  @keyframes shk{0%,100%{transform:translateX(0)}25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
+  @keyframes fl{0%{background:#1a2a0a}100%{background:#0c1206}}
+  @keyframes to{0%{background:#2a0a0a}100%{background:#0c1206}}
+  .target{font-size:54px;font-weight:700;letter-spacing:2px;line-height:1.25;min-height:70px;word-break:break-word}
+  .target.small{font-size:38px}
+  .target .ch{transition:.1s}
+  .target .ch.done{color:var(--ok)}
+  .target .ch.cur{color:var(--lime);text-shadow:0 0 16px rgba(159,217,42,.7);border-bottom:3px solid var(--lime)}
+  .target .ch.todo{color:var(--muted)}
+  .target .ch.bad{color:var(--ng);animation:badp .2s}
+  @keyframes badp{0%{transform:scale(1.3)}100%{transform:scale(1)}}
+  .hint{color:var(--muted);font-size:14px;margin-top:10px;min-height:20px}
+
+  .typed{text-align:center;font-size:22px;letter-spacing:2px;min-height:30px;
+    color:var(--ink);margin-bottom:6px;word-break:break-word}
+  .typed .caret{display:inline-block;width:2px;height:24px;background:var(--lime);
+    vertical-align:middle;animation:blink 1s step-end infinite}
+  @keyframes blink{50%{opacity:0}}
+  .status{text-align:center;font-size:13px;color:var(--muted);min-height:18px}
+
+  .touchinput{position:absolute;opacity:0;pointer-events:none;height:1px;width:1px}
+  .tapcue{display:none;text-align:center;margin-bottom:14px}
+  .tapcue.show{display:block}
+  .tapcue button{background:var(--lime);color:#0a0f04;border:none;border-radius:10px;
+    padding:14px 26px;font-family:'Silkscreen';font-size:13px;cursor:pointer;letter-spacing:1px}
+
+  .kbwarn{display:none;background:#2a0a0a;border:1px solid var(--ng);border-radius:10px;
+    padding:14px;margin-bottom:14px;text-align:center}
+  .kbwarn.show{display:block}
+  .kbwarn .t{color:var(--ng);font-family:'Silkscreen';font-size:12px;margin-bottom:6px}
+  .kbwarn .d{font-size:13px;color:var(--ink)}
+
+  #results{display:none;text-align:center}
+  #results h2{font-family:'Silkscreen';color:var(--lime);font-size:20px;margin-bottom:18px}
+  .statgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:20px}
+  .stat{background:#0c1206;border:1px solid var(--line);border-radius:10px;padding:14px}
+  .stat .n{font-family:'Silkscreen';font-size:22px;color:var(--lime)}
+  .stat .l{font-size:11px;color:var(--muted);margin-top:4px}
+  .weak{text-align:left;margin-top:8px}
+  .weak h3{font-size:13px;color:var(--ink);margin-bottom:10px;font-weight:600}
+  .wrow{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+  .wch{font-size:26px;width:44px;text-align:center;color:var(--ng)}
+  .wbar{flex:1;height:18px;background:#0e1607;border-radius:5px;overflow:hidden;position:relative}
+  .wbar .f{height:100%;background:linear-gradient(90deg,#7a2010,var(--ng))}
+  .wtype{display:flex;gap:4px;font-size:10px;color:var(--muted);width:128px;
+    flex-direction:column;font-family:'Silkscreen'}
+  .wtype span b{color:var(--ember)}
+  .empty{color:var(--muted);font-size:14px;padding:14px}
+
+  .ghost{background:none;border:1px solid var(--line);color:var(--ink);
+    border-radius:9px;padding:12px 22px;font-family:'Silkscreen';font-size:12px;cursor:pointer;margin:6px;transition:.15s}
+  .ghost:hover{border-color:var(--lime);color:var(--lime)}
+
+  .note{font-size:11px;color:var(--muted);text-align:center;margin-top:18px;line-height:1.6}
+  kbd{background:#0e1607;border:1px solid var(--line);border-radius:4px;padding:1px 6px;
+    font-family:'Silkscreen';font-size:10px;color:var(--lime)}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="logo">◆ MOONOI MONSOON ◆</div>
+    <h1>THAI TYPING<br>TRAINER</h1>
+    <div class="sub">Kedmanee 配列 · タイ語タイピング練習</div>
+  </header>
+
+  <div id="select" class="panel">
+    <div class="sectit">INPUT METHOD / 入力方式</div>
+    <div class="imrow" id="imRow">
+      <div class="im" data-im="physical">
+        <div class="it">物理キーボード</div>
+        <div class="id">Magic Keyboard等。配列・指の習得が目的</div>
+        <div class="rec" id="recPhys"></div>
+      </div>
+      <div class="im" data-im="touch">
+        <div class="it">タッチ入力</div>
+        <div class="id">iPhone/iPadの画面キーボード。文字練習が目的</div>
+        <div class="rec" id="recTouch"></div>
+      </div>
+    </div>
+
+    <div class="sectit">LEVEL / レベル</div>
+    <div class="levels" id="levelGrid"></div>
+
+    <div class="kbcheck" id="kbcheck">
+      <div class="label">スタート前チェック：下の枠をクリックして <b style="color:var(--lime)">ก</b> を打つ</div>
+      <div class="testbox" id="testbox" tabindex="0">
+        <span id="testPlaceholder" style="color:var(--muted);font-size:13px">ここをクリックして ก キーを押す</span>
+        <span class="key" id="testKey" style="display:none"></span>
+      </div>
+      <div class="state idle" id="kbState">未確認</div>
+      <div class="hintline" id="kbHint">タイ語入力モードがONか確認します（英字が出たらモード切替が必要）</div>
+    </div>
+
+    <!-- 累積の苦手キー（localStorageにデータがあるときだけ表示） -->
+    <div class="cumweak" id="cumweak">
+      <h3>累積の苦手トップ5</h3>
+      <div class="sub2">これまでの全プレイの記録から</div>
+      <div id="cumList"></div>
+    </div>
+
+    <button class="startbtn" id="startBtn" disabled>入力方式とレベルを選択</button>
+  </div>
+
+  <!-- GAME -->
+  <div id="game" class="panel">
+    <div class="hud">
+      <span><span class="v" id="hQ">0</span>/<span id="hT">0</span></span>
+      <span class="combo" id="hCombo">COMBO 0</span>
+      <span>ACC <span class="v" id="hAcc">100%</span></span>
+    </div>
+
+    <div class="timerbar"><div class="tf" id="timerFill"></div></div>
+    <div class="timertext" id="timerText">30.0s</div>
+    <div class="progress"><div class="bar" id="bar"></div></div>
+
+    <div class="kbwarn" id="kbwarn">
+      <div class="t">⚠ KEYBOARD NOT THAI</div>
+      <div class="d">英字が入力されました。タイ語入力モードに戻してください。<br>
+        タイ文字が打てると自動で復帰します（残り時間は保持）。</div>
+    </div>
+
+    <div class="prompt" id="prompt">
+      <div class="target" id="target"></div>
+      <div class="hint" id="hint"></div>
+    </div>
+    <div class="typed" id="typed"><span class="caret"></span></div>
+
+    <div class="tapcue" id="tapcue">
+      <button id="focusBtn">タップしてキーボードを出す</button>
+    </div>
+
+    <div class="status" id="status">打ち始めてください</div>
+    <input class="touchinput" id="touchInput" type="text"
+      autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" lang="th">
+  </div>
+
+  <!-- RESULTS -->
+  <div id="results" class="panel">
+    <h2>RESULT</h2>
+    <div class="statgrid">
+      <div class="stat"><div class="n" id="rAcc">—</div><div class="l">正確率</div></div>
+      <div class="stat"><div class="n" id="rWpm">—</div><div class="l">文字/分</div></div>
+      <div class="stat"><div class="n" id="rCombo">—</div><div class="l">最大コンボ</div></div>
+    </div>
+    <div class="weak">
+      <h3>苦手な文字（今回ミスの多かった文字）</h3>
+      <div id="weakList"></div>
+    </div>
+    <div style="margin-top:18px">
+      <button class="ghost" id="retryBtn">もう一度</button>
+      <button class="ghost" id="backBtn">レベル選択へ</button>
+    </div>
+  </div>
+
+  <div class="note" id="footNote">
+    <kbd>Backspace</kbd> 打ち直し可 · 時間切れは不正解として次へ<br>
+    苦手な文字の履歴はGitHub Pages公開時にブラウザへ自動保存されます
+  </div>
+</div>
+
+<script>
+/* ================================================================
+   GAME DATA
+   ----------------------------------------------------------------
+   出題データはこのブロックに集約。将来は同じ構造のJSONを
+   ./typing-data.json として置けば、下のloadExternalData()が
+   起動時に読み込んで差し替える（パートナーが単語を編集できる形）。
+   GitHub Pages上で有効。ファイルが無ければこの内蔵データで動く。
+   ================================================================ */
+const GAME_DATA = {
+  preVowels: ['เ','แ','โ','ไ','ใ'],
+  timePerKind: { char:30, word:30, mix:30, sentence:45 },
+  levels: [
+    { id:'home', ln:'LV.1', t:'ホームポジション', d:'基本の指の位置・よく使う子音',
+      chars:'ฟหกดเ้่าสว', kind:'char', physicalFocus:true,
+      items:['ฟ','ห','ก','ด','เ','้','่','า','ส','ว'] },
+    { id:'mid', ln:'LV.2', t:'中段の文字', d:'基本面・残りの子音',
+      chars:'งบทมพะรนยอ', kind:'char', physicalFocus:true,
+      items:['ง','บ','ท','ม','พ','ะ','ร','น','ย','อ'] },
+    { id:'words', ln:'LV.3', t:'やさしい単語', d:'短い実用タイ語',
+      chars:'', kind:'word', badge:'単語 10コ',
+      items:['นก','ตา','มา','ดี','ไป','กิน','นอน','บ้าน','หมา','น้ำ'] },
+    { id:'shift', ln:'LV.4', t:'声調記号・上段', d:'上に乗る記号を含む単語（難所）',
+      chars:'่ ้ ๊ ๋ ็ ั', kind:'word', physicalFocus:true, badge:'',
+      items:['ก็','ก๋','ปี๋','โต๊ะ','เก้า','ผู้','ครับ','ค่ะ'] },
+    { id:'mix', ln:'LV.5', t:'ミックス', d:'LV1・2・4をまぜて出題',
+      chars:'', kind:'mix', badge:'混合 全レベル', items:[] /* buildで合成 */ },
+    { id:'sentence', ln:'LV.6', t:'文章', d:'7〜9語の短文（習得済み文字のみ）',
+      chars:'', kind:'sentence', badge:'短文 · LV1/2/4の文字だけ',
+      /* LV1・2・4で出た文字＋スペースのみで構成した文 */
+      items:[
+        'วัน นั้น เรา มา นอน ที่ บ้าน ตา',
+        'หมา ตัว นั้น นอน อยู่ ที่ สวน บ้าน เรา',
+        'ผม กับ ตา มา ทาน ที่ บ้าน ครับ',
+        'ปี นั้น เรา มี งาน มาก ที่ บ้าน',
+        'เย็น วัน นั้น ผู้ คน มา หา ครู',
+        'โต๊ะ ตัว นั้น อยู่ ที่ บ้าน เรา นะ',
+        'ตา มา ที่ วัด กับ เรา วัน นั้น'
+      ] },
+  ]
+};
+
+/* 外部データ読込（任意）。GitHub Pagesに typing-data.json を置くと上書き */
+async function loadExternalData(){
+  try{
+    const res=await fetch('./typing-data.json',{cache:'no-store'});
+    if(!res.ok)return;
+    const ext=await res.json();
+    if(ext.levels)GAME_DATA.levels=ext.levels;
+    if(ext.timePerKind)GAME_DATA.timePerKind=ext.timePerKind;
+    if(ext.preVowels)GAME_DATA.preVowels=ext.preVowels;
+    buildLevelGrid(); /* 再描画 */
+  }catch(e){/* 無ければ内蔵データで続行 */}
+}
+
+/* ================================================================
+   FX LAYER — 演出フック
+   ----------------------------------------------------------------
+   判定エンジンは以下のフックだけを呼ぶ。将来のRPG化では
+   このオブジェクトを差し替える（敵ダメージ、世界の前進など）。
+   ================================================================ */
+const FX = {
+  onCorrect(ctx){ /* 1文字正解。ctx={char,pos,combo} */ },
+  onMiss(ctx){    /* ミス。ctx={want,got,pos} */
+    flashBad(ctx.pos); shakePrompt();
+  },
+  onClear(ctx){   /* 1問完了。ctx={perfect,combo} */
+    flashOk();
+  },
+  onTimeout(ctx){ /* 時間切れ */
+    const p=document.getElementById('prompt');
+    p.classList.add('timeout');setTimeout(()=>p.classList.remove('timeout'),400);
+  },
+};
+
+/* ================================================================ STATE */
+let inputMethod=null;
+let level=null, queue=[], qi=0, target=[], pos=0, typed=[];
+let combo=0, maxCombo=0, totalKeys=0, correctKeys=0, startTime=0;
+let curHadError=false, kbBad=false, transitioning=false;
+let weak={};
+let timeLeft=0, timerId=null, qLimit=30;
+const STORE_KEY='mm_thai_typing_weak_v1';
+
+function isThaiChar(s){ return /[\u0E00-\u0E7F]/.test(s); }
+function loadWeakAll(){try{const r=localStorage.getItem(STORE_KEY);if(r)return JSON.parse(r);}catch(e){}return null;}
+function saveWeak(){try{
+  const all=loadWeakAll()||{};
+  for(const c in weak){
+    if(!all[c])all[c]={couldnt:0,wrong:0,total:0};
+    all[c].couldnt+=weak[c].couldnt;all[c].wrong+=weak[c].wrong;all[c].total+=weak[c].total;
+  }
+  localStorage.setItem(STORE_KEY,JSON.stringify(all));
+}catch(e){}}
+
+/* ================================================================ DEVICE */
+const coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+const touchy = ('ontouchstart' in window) || navigator.maxTouchPoints>0;
+const likelyTouch = coarse && touchy;
+
+/* ================================================================ INPUT METHOD */
+const imRow=document.getElementById('imRow');
+const kbcheck=document.getElementById('kbcheck');
+document.getElementById('recPhys').textContent = likelyTouch ? '' : '推奨';
+document.getElementById('recTouch').textContent = likelyTouch ? '推奨' : '';
+imRow.querySelectorAll('.im').forEach(el=>{
+  el.onclick=()=>{
+    imRow.querySelectorAll('.im').forEach(x=>x.classList.remove('sel'));
+    el.classList.add('sel');
+    inputMethod=el.dataset.im;
+    kbcheck.classList.toggle('hidden', inputMethod!=='physical');
+    updateLevelDim();refreshStart();
+  };
+});
+
+/* ================================================================ KB CHECK */
+let kbVerified=false;
+const testbox=document.getElementById('testbox');
+const testKey=document.getElementById('testKey');
+const testPlaceholder=document.getElementById('testPlaceholder');
+const kbState=document.getElementById('kbState');
+const kbHint=document.getElementById('kbHint');
+testbox.addEventListener('keydown',e=>{
+  if(e.key.length!==1||e.ctrlKey||e.metaKey||e.altKey)return;
+  e.preventDefault();
+  testPlaceholder.style.display='none';testKey.style.display='inline';testKey.textContent=e.key;
+  if(isThaiChar(e.key)){
+    kbVerified=true;kbState.textContent='タイ語モード OK';kbState.className='state ok';
+    kbHint.textContent='準備完了。レベルを選んでSTART。';
+  }else{
+    kbVerified=false;kbState.textContent='英字が出ています';kbState.className='state ng';
+    kbHint.innerHTML='タイ語入力に切替（Mac: <kbd>Ctrl+Space</kbd> / Win: <kbd>Win+Space</kbd>）。もう一度 ก を試す。';
+  }
+  refreshStart();
+});
+testbox.addEventListener('click',()=>testbox.focus());
+
+/* ================================================================ LEVEL SELECT */
+const grid=document.getElementById('levelGrid');
+const startBtn=document.getElementById('startBtn');
+let selId=null;
+function buildLevelGrid(){
+  grid.innerHTML='';
+  GAME_DATA.levels.forEach(l=>{
+    const d=document.createElement('div');
+    d.className='lvl';d.dataset.id=l.id;
+    const display=l.chars?`<div class="chars">${l.chars}</div>`:`<div class="badge">${l.badge||''}</div>`;
+    d.innerHTML=`<div class="ln">${l.ln}</div><div class="lt">${l.t}</div><div class="ld">${l.d}</div>${display}`;
+    d.onclick=()=>{
+      document.querySelectorAll('.lvl').forEach(x=>x.classList.remove('sel'));
+      d.classList.add('sel');selId=l.id;refreshStart();
+    };
+    grid.appendChild(d);
+  });
+  updateLevelDim();
+}
+function updateLevelDim(){
+  document.querySelectorAll('.lvl').forEach(el=>{
+    const lv=GAME_DATA.levels.find(x=>x.id===el.dataset.id);
+    el.classList.toggle('dim', inputMethod==='touch' && !!lv.physicalFocus);
+  });
+}
+function refreshStart(){
+  if(!inputMethod){startBtn.disabled=true;startBtn.textContent='入力方式を選択';return;}
+  if(!selId){startBtn.disabled=true;startBtn.textContent='レベルを選択';return;}
+  if(inputMethod==='physical'&&!kbVerified){
+    startBtn.disabled=true;startBtn.textContent='タイ語モードを確認してください';return;}
+  startBtn.disabled=false;startBtn.textContent='START';
+}
+startBtn.onclick=()=>{
+  if(!inputMethod||!selId)return;
+  if(inputMethod==='physical'&&!kbVerified)return;
+  start(selId);
+};
+
+/* ================================================================ GAME FLOW */
+const elSelect=document.getElementById('select');
+const elGame=document.getElementById('game');
+const elResults=document.getElementById('results');
+const kbwarn=document.getElementById('kbwarn');
+const tapcue=document.getElementById('tapcue');
+const touchInput=document.getElementById('touchInput');
+
+function levelPool(l){
+  if(l.kind==='mix'){
+    /* LV1・2・4を実行時に合成（データ二重管理を避ける） */
+    const ids=['home','mid','shift'];
+    return ids.flatMap(id=>{
+      const s=GAME_DATA.levels.find(x=>x.id===id);
+      return s?s.items:[];
+    });
+  }
+  return [...l.items];
+}
+
+function start(id){
+  level=GAME_DATA.levels.find(l=>l.id===id);
+  qLimit=GAME_DATA.timePerKind[level.kind]||30;
+  let pool=levelPool(level);
+  if(pool.length<10)pool=[...pool,...pool];
+  const count=(level.kind==='sentence')?Math.min(7,pool.length):10;
+  queue=shuffle(pool).slice(0,count);
+  qi=0;combo=0;maxCombo=0;totalKeys=0;correctKeys=0;weak={};kbBad=false;transitioning=false;
+  startTime=performance.now();
+  elSelect.style.display='none';elResults.style.display='none';elGame.style.display='block';
+  document.getElementById('hT').textContent=queue.length;
+  tapcue.classList.toggle('show', inputMethod==='touch');
+  document.getElementById('footNote').style.display=(inputMethod==='touch')?'none':'block';
+  loadQuestion();
+}
+
+function loadQuestion(){
+  if(qi>=queue.length){return finish();}
+  target=[...queue[qi]];
+  pos=0;typed=[];curHadError=false;transitioning=false;
+  document.getElementById('hQ').textContent=qi+1;
+  document.getElementById('bar').style.width=(qi/queue.length*100)+'%';
+  const tEl=document.getElementById('target');
+  tEl.classList.toggle('small',target.length>14);
+  renderTarget();renderTyped();
+  document.getElementById('status').textContent='打ち始めてください';
+  document.getElementById('hint').textContent=hintFor(queue[qi]);
+  if(inputMethod==='touch'){touchInput.value='';}
+  startTimer(qLimit);
+}
+function hintFor(s){
+  const arr=[...s];
+  if(arr.length===1){
+    if(GAME_DATA.preVowels.includes(s))return '前置母音 — 子音より先に打つ字';
+    return '';
+  }
+  if(arr.some(c=>GAME_DATA.preVowels.includes(c)))return '※ 前置母音は見た目より先に打鍵';
+  if(s.includes(' '))return 'スペースも入力します（語の区切り）';
+  return '';
+}
+function renderTarget(){
+  const el=document.getElementById('target');
+  el.innerHTML=target.map((c,i)=>{
+    let cls='todo';if(i<pos)cls='done';else if(i===pos)cls='cur';
+    const disp=(c===' ')?'·':c;
+    return `<span class="ch ${cls}" data-i="${i}">${disp}</span>`;
+  }).join('');
+}
+function flashBad(i){const el=document.querySelector(`.ch[data-i="${i}"]`);
+  if(el){el.classList.add('bad');setTimeout(()=>el.classList.remove('bad'),200);}}
+function renderTyped(){
+  const shown=typed.map(c=>c===' '?'·':c).join('');
+  document.getElementById('typed').innerHTML=shown+'<span class="caret"></span>';
+}
+
+/* ================================================================ TIMER
+   pause/resume対応。kbwarn復帰時は残り時間を保持して再開 */
+function startTimer(seconds){
+  clearInterval(timerId);timeLeft=seconds;updateTimer();
+  timerId=setInterval(tick,100);
+}
+function resumeTimer(){clearInterval(timerId);timerId=setInterval(tick,100);}
+function tick(){
+  timeLeft-=0.1;
+  if(timeLeft<=0){timeLeft=0;updateTimer();timeout();}
+  else updateTimer();
+}
+function stopTimer(){clearInterval(timerId);}
+function updateTimer(){
+  const pct=Math.max(0,timeLeft/qLimit*100);
+  const fill=document.getElementById('timerFill');
+  fill.style.width=pct+'%';
+  fill.className='tf'+(timeLeft<=5?' crit':(timeLeft<=10?' warn':''));
+  const tt=document.getElementById('timerText');
+  tt.textContent=timeLeft.toFixed(1)+'s';
+  tt.className='timertext'+(timeLeft<=5?' crit':'');
+}
+function timeout(){
+  stopTimer();
+  if(transitioning)return;
+  transitioning=true;
+  for(let i=pos;i<target.length;i++){if(target[i]!==' ')recordMiss(target[i],'couldnt');}
+  combo=0;updateHud();
+  FX.onTimeout({});
+  document.getElementById('status').textContent='時間切れ — 次の問題へ';
+  setTimeout(nextQuestion,500);
+}
+
+/* ================================================================ ENGINE (shared)
+   prefix照合。物理=1キーずつ / タッチ=input値全体、どちらもここへ */
+function commitTyped(newArr){
+  if(transitioning)return;
+  let i=0;
+  while(i<newArr.length && i<target.length && newArr[i]===target[i]) i++;
+  if(newArr.length<=target.length && i===newArr.length){
+    const gained=newArr.length-pos;
+    if(gained>0){
+      correctKeys+=gained;totalKeys+=gained;
+      FX.onCorrect({char:newArr[newArr.length-1],pos:newArr.length-1,combo});
+    }
+    pos=newArr.length;typed=newArr.slice();
+    renderTarget();renderTyped();
+    if(pos>=target.length) clearQuestion();
+    else updateHud();
+  }else{
+    curHadError=true;combo=0;totalKeys+=1;
+    const want=target[i];
+    if(want&&want!==' ')recordMiss(want,'wrong');
+    FX.onMiss({want,got:newArr[i],pos:i});
+    document.getElementById('status').textContent=
+      want?`${want} のところ違う字を入力`:'余分な入力です';
+    updateHud();
+    if(inputMethod==='touch'){
+      typed=target.slice(0,i);pos=i;
+      touchInput.value=typed.join('');
+      renderTarget();renderTyped();
+    }
+  }
+}
+function clearQuestion(){
+  stopTimer();
+  transitioning=true;
+  const perfect=!curHadError;
+  if(perfect){combo++;maxCombo=Math.max(maxCombo,combo);}else combo=0;
+  updateHud();
+  FX.onClear({perfect,combo});
+  setTimeout(nextQuestion,260);
+}
+
+/* ================================================================ PHYSICAL INPUT */
+document.addEventListener('keydown',e=>{
+  if(elGame.style.display!=='block')return;
+  if(inputMethod!=='physical')return;
+  if(transitioning){e.preventDefault();return;}
+
+  if(e.key==='Backspace'){e.preventDefault();
+    if(pos>0){pos--;typed.pop();renderTarget();renderTyped();}return;}
+  if(e.key.length!==1)return;
+  if(e.ctrlKey||e.metaKey||e.altKey)return;
+  e.preventDefault();
+
+  if(e.key!==' '&&!isThaiChar(e.key)){showKbWarn();return;}
+  else hideKbWarn();
+
+  /* 物理は「今の位置に1字追加」してエンジンへ */
+  commitTyped([...typed, e.key]);
+});
+
+/* ================================================================ TOUCH INPUT */
+document.getElementById('focusBtn').onclick=()=>{touchInput.focus();};
+elGame.addEventListener('click',()=>{if(inputMethod==='touch')touchInput.focus();});
+touchInput.addEventListener('input',()=>{
+  if(inputMethod!=='touch'||elGame.style.display!=='block')return;
+  if(transitioning){touchInput.value=typed.join('');return;}
+  commitTyped([...touchInput.value]);
+});
+
+function showKbWarn(){if(kbBad)return;kbBad=true;kbwarn.classList.add('show');
+  stopTimer();document.getElementById('status').textContent='タイ語入力に戻すと自動で再開します';}
+function hideKbWarn(){if(!kbBad)return;kbBad=false;kbwarn.classList.remove('show');
+  resumeTimer();/* 残り時間を保持して再開 */
+  document.getElementById('status').textContent='再開しました';}
+
+function recordMiss(ch,kind){if(!weak[ch])weak[ch]={couldnt:0,wrong:0,total:0};
+  weak[ch][kind]++;weak[ch].total++;}
+function nextQuestion(){stopTimer();qi++;loadQuestion();
+  if(inputMethod==='touch'&&elGame.style.display==='block'){setTimeout(()=>touchInput.focus(),50);}}
+
+function updateHud(){
+  const c=document.getElementById('hCombo');c.textContent='COMBO '+combo;
+  c.classList.toggle('hot',combo>=5);
+  const acc=totalKeys?Math.round(correctKeys/totalKeys*100):100;
+  document.getElementById('hAcc').textContent=acc+'%';
+}
+function shakePrompt(){const p=document.getElementById('prompt');
+  p.classList.add('shake');setTimeout(()=>p.classList.remove('shake'),300);}
+function flashOk(){const p=document.getElementById('prompt');
+  p.classList.add('flash');setTimeout(()=>p.classList.remove('flash'),300);}
+
+/* ================================================================ RESULTS */
+function finish(){
+  stopTimer();document.getElementById('bar').style.width='100%';saveWeak();
+  const acc=totalKeys?Math.round(correctKeys/totalKeys*100):100;
+  const mins=(performance.now()-startTime)/60000;
+  const cpm=mins>0?Math.round(correctKeys/mins):0;
+  document.getElementById('rAcc').textContent=acc+'%';
+  document.getElementById('rWpm').textContent=cpm;
+  document.getElementById('rCombo').textContent=maxCombo;
+  renderWeak(weak,document.getElementById('weakList'));
+  elGame.style.display='none';elResults.style.display='block';
+  tapcue.classList.remove('show');
+  renderCumWeak(); /* 次回のスタート画面用に更新 */
+}
+function renderWeak(data,box){
+  const entries=Object.entries(data).sort((a,b)=>b[1].total-a[1].total).slice(0,5);
+  if(entries.length===0){box.innerHTML='<div class="empty">ミスなし。完璧です ◆</div>';return;}
+  const max=entries[0][1].total;
+  box.innerHTML=entries.map(([ch,d])=>`
+    <div class="wrow"><div class="wch">${ch}</div>
+      <div class="wbar"><div class="f" style="width:${d.total/max*100}%"></div></div>
+      <div class="wtype"><span>打てない <b>${d.couldnt}</b></span>
+        <span>別の字 <b>${d.wrong}</b></span></div>
+    </div>`).join('');
+}
+/* スタート画面: 累積苦手トップ5（データがあるときだけ表示） */
+function renderCumWeak(){
+  const all=loadWeakAll();
+  const panel=document.getElementById('cumweak');
+  if(!all||Object.keys(all).length===0){panel.classList.remove('show');return;}
+  renderWeak(all,document.getElementById('cumList'));
+  panel.classList.add('show');
+}
+document.getElementById('retryBtn').onclick=()=>start(level.id);
+document.getElementById('backBtn').onclick=()=>{
+  elResults.style.display='none';elSelect.style.display='block';renderCumWeak();};
+
+/* ================================================================ UTIL */
+function shuffle(a){a=[...a];for(let i=a.length-1;i>0;i--){
+  const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+(function(){for(let i=0;i<14;i++){const e=document.createElement('div');e.className='ember';
+  e.style.left=Math.random()*100+'vw';e.style.setProperty('--drift',(Math.random()*60-30)+'px');
+  e.style.animationDuration=(6+Math.random()*8)+'s';e.style.animationDelay=(Math.random()*8)+'s';
+  document.body.appendChild(e);}})();
+
+/* init */
+buildLevelGrid();
+renderCumWeak();
+loadExternalData();
+</script>
+</body>
+</html>
