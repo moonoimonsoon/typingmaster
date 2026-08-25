@@ -283,6 +283,9 @@
     </div>
 
     <button class="startbtn" id="startBtn" disabled>入力方式とレベルを選択</button>
+    <div class="note" style="margin-top:12px">
+      <kbd>Backspace</kbd> 打ち直し可 · <kbd>Esc</kbd> 中断 · 時間切れは不正解として次へ
+    </div>
   </div>
 
   <!-- GAME -->
@@ -343,10 +346,6 @@
     </div>
   </div>
 
-  <div class="note" id="footNote">
-    <kbd>Backspace</kbd> 打ち直し可 · <kbd>Esc</kbd> 中断 · 時間切れは不正解として次へ<br>
-    苦手な文字の履歴は、このブラウザ内にだけ自動保存されます（他の端末とは共有されません）
-  </div>
 </div>
 
 <script>
@@ -696,7 +695,6 @@ function start(id){
   elSelect.style.display='none';elResults.style.display='none';elGame.style.display='block';
   document.getElementById('hT').textContent=queue.length;
   tapcue.classList.toggle('show', inputMethod==='touch');
-  document.getElementById('footNote').style.display=(inputMethod==='touch')?'none':'block';
   loadQuestion();
 }
 
@@ -878,7 +876,6 @@ function abortGame(){
   stopTimer();transitioning=true;AUDIO.stopBgm();
   elGame.style.display='none';elSelect.style.display='block';
   tapcue.classList.remove('show');kbwarn.classList.remove('show');kbBad=false;
-  document.getElementById('footNote').style.display='block';
   renderCumWeak();
 }
 document.getElementById('quitBtn').onclick=e=>{e.stopPropagation();abortGame();};
@@ -950,9 +947,7 @@ resetBtn.onclick=()=>{
 
 document.getElementById('retryBtn').onclick=()=>start(level.id);
 document.getElementById('backBtn').onclick=()=>{
-  elResults.style.display='none';elSelect.style.display='block';
-  document.getElementById('footNote').style.display='block';/* タッチで隠した注記を戻す */
-  renderCumWeak();};
+  elResults.style.display='none';elSelect.style.display='block';renderCumWeak();};
 
 /* ================================================================ UTIL */
 function shuffle(a){a=[...a];for(let i=a.length-1;i>0;i--){
