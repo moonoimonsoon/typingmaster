@@ -121,6 +121,12 @@
   .target .ch.todo{color:var(--muted)}
   .target .ch.bad{color:var(--ng);animation:badp .2s}
   @keyframes badp{0%{transform:scale(1.3)}100%{transform:scale(1)}}
+  /* 本来の綴り表示。上下に乗る記号は1字ずつ分割すると崩れるため並べて示す */
+  .natural{display:none;margin-top:12px;padding-top:10px;border-top:1px dashed var(--line)}
+  .natural.show{display:block}
+  .natural .nlabel{font-family:'Silkscreen';font-size:9px;color:var(--lime-dim);
+    letter-spacing:1px;display:block;margin-bottom:4px}
+  .natural .nbody{font-size:24px;color:var(--ink);word-break:break-word;line-height:1.5}
   .hint{color:var(--muted);font-size:14px;margin-top:10px;min-height:20px}
 
   .typed{text-align:center;font-size:22px;letter-spacing:2px;min-height:30px;
@@ -130,7 +136,8 @@
   @keyframes blink{50%{opacity:0}}
   .status{text-align:center;font-size:13px;color:var(--muted);min-height:18px}
 
-  .touchinput{position:absolute;opacity:0;pointer-events:none;height:1px;width:1px}
+  /* font-sizeは16px必須。これ未満だとiOS Safariがフォーカス時に画面を自動拡大する */
+  .touchinput{position:absolute;opacity:0;pointer-events:none;height:1px;width:1px;font-size:16px}
   .tapcue{display:none;text-align:center;margin-bottom:14px}
   .tapcue.show{display:block}
   .tapcue button{background:var(--lime);color:#0a0f04;border:none;border-radius:10px;
@@ -162,6 +169,11 @@
   .ghost{background:none;border:1px solid var(--line);color:var(--ink);
     border-radius:9px;padding:12px 22px;font-family:'Silkscreen';font-size:12px;cursor:pointer;margin:6px;transition:.15s}
   .ghost:hover{border-color:var(--lime);color:var(--lime)}
+  .ghost.sm{padding:8px 16px;font-size:10px;color:var(--muted);margin:0}
+  .ghost.sm:hover{border-color:var(--ng);color:var(--ng)}
+  .ghost.sm.armed{border-color:var(--ng);color:var(--ng)}
+  .quitrow{text-align:center;margin-top:16px}
+  .resetrow{text-align:right;margin-top:12px}
 
   .note{font-size:11px;color:var(--muted);text-align:center;margin-top:18px;line-height:1.6}
   kbd{background:#0e1607;border:1px solid var(--line);border-radius:4px;padding:1px 6px;
@@ -210,6 +222,7 @@
       <h3>累積の苦手トップ5</h3>
       <div class="sub2">これまでの全プレイの記録から</div>
       <div id="cumList"></div>
+      <div class="resetrow"><button class="ghost sm" id="resetBtn">記録をリセット</button></div>
     </div>
 
     <button class="startbtn" id="startBtn" disabled>入力方式とレベルを選択</button>
@@ -235,6 +248,10 @@
 
     <div class="prompt" id="prompt">
       <div class="target" id="target"></div>
+      <div class="natural" id="natural">
+        <span class="nlabel">本来の綴り</span>
+        <span class="nbody" id="naturalBody"></span>
+      </div>
       <div class="hint" id="hint"></div>
     </div>
     <div class="typed" id="typed"><span class="caret"></span></div>
@@ -246,6 +263,8 @@
     <div class="status" id="status">打ち始めてください</div>
     <input class="touchinput" id="touchInput" type="text"
       autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" lang="th">
+
+    <div class="quitrow"><button class="ghost sm" id="quitBtn">やめる</button></div>
   </div>
 
   <!-- RESULTS -->
@@ -267,8 +286,8 @@
   </div>
 
   <div class="note" id="footNote">
-    <kbd>Backspace</kbd> 打ち直し可 · 時間切れは不正解として次へ<br>
-    苦手な文字の履歴はGitHub Pages公開時にブラウザへ自動保存されます
+    <kbd>Backspace</kbd> 打ち直し可 · <kbd>Esc</kbd> 中断 · 時間切れは不正解として次へ<br>
+    苦手な文字の履歴は、このブラウザ内にだけ自動保存されます（他の端末とは共有されません）
   </div>
 </div>
 
@@ -298,7 +317,9 @@ const GAME_DATA = {
       chars:'่ ้ ๊ ๋ ็ ั', kind:'word', physicalFocus:true, badge:'',
       items:['ก็','ก๋','ปี๋','โต๊ะ','เก้า','ผู้','ครับ','ค่ะ'] },
     { id:'mix', ln:'LV.5', t:'ミックス', d:'LV1・2・4をまぜて出題',
-      chars:'', kind:'mix', badge:'混合 全レベル', items:[] /* buildで合成 */ },
+      chars:'', kind:'mix', badge:'混合 全レベル',
+      mixFrom:['home','mid','shift'], /* 合成元のレベルid。外部JSONでも変更可 */
+      items:[] /* buildで合成 */ },
     { id:'sentence', ln:'LV.6', t:'文章', d:'7〜9語の短文（習得済み文字のみ）',
       chars:'', kind:'sentence', badge:'短文 · LV1/2/4の文字だけ',
       /* LV1・2・4で出た文字＋スペースのみで構成した文 */
@@ -353,10 +374,13 @@ let level=null, queue=[], qi=0, target=[], pos=0, typed=[];
 let combo=0, maxCombo=0, totalKeys=0, correctKeys=0, startTime=0;
 let curHadError=false, kbBad=false, transitioning=false;
 let weak={};
-let timeLeft=0, timerId=null, qLimit=30;
+let timeLeft=0, timerId=null, timerEnd=0, qLimit=30;
 const STORE_KEY='mm_thai_typing_weak_v1';
 
 function isThaiChar(s){ return /[\u0E00-\u0E7F]/.test(s); }
+/* \u5B50\u97F3\u306E\u4E0A\u4E0B\u306B\u4E57\u308B\u8A18\u53F7\uFF08\u58F0\u8ABF\u8A18\u53F7\u30FB\u4E0A\u4E0B\u306E\u6BCD\u97F3\uFF09\u30021\u5B57\u305A\u3064\u5206\u3051\u308B\u3068\u70B9\u7DDA\u306E\u4E38\u304C\u51FA\u3066\u5D29\u308C\u308B */
+const COMBINING=/[\u0E31\u0E34-\u0E3A\u0E47-\u0E4E]/;
+function hasCombining(s){ return COMBINING.test(s); }
 function loadWeakAll(){try{const r=localStorage.getItem(STORE_KEY);if(r)return JSON.parse(r);}catch(e){}return null;}
 function saveWeak(){try{
   const all=loadWeakAll()||{};
@@ -415,9 +439,12 @@ const startBtn=document.getElementById('startBtn');
 let selId=null;
 function buildLevelGrid(){
   grid.innerHTML='';
+  /* 外部JSONで作り直したとき、消えたレベルの選択が残らないようにする */
+  if(selId && !GAME_DATA.levels.some(l=>l.id===selId)) selId=null;
   GAME_DATA.levels.forEach(l=>{
     const d=document.createElement('div');
     d.className='lvl';d.dataset.id=l.id;
+    if(l.id===selId)d.classList.add('sel'); /* 選択済みなら見た目を復元 */
     const display=l.chars?`<div class="chars">${l.chars}</div>`:`<div class="badge">${l.badge||''}</div>`;
     d.innerHTML=`<div class="ln">${l.ln}</div><div class="lt">${l.t}</div><div class="ld">${l.d}</div>${display}`;
     d.onclick=()=>{
@@ -426,7 +453,7 @@ function buildLevelGrid(){
     };
     grid.appendChild(d);
   });
-  updateLevelDim();
+  updateLevelDim();refreshStart();
 }
 function updateLevelDim(){
   document.querySelectorAll('.lvl').forEach(el=>{
@@ -457,8 +484,8 @@ const touchInput=document.getElementById('touchInput');
 
 function levelPool(l){
   if(l.kind==='mix'){
-    /* LV1・2・4を実行時に合成（データ二重管理を避ける） */
-    const ids=['home','mid','shift'];
+    /* 合成元を実行時にまとめる（データ二重管理を避ける） */
+    const ids=l.mixFrom||['home','mid','shift'];
     return ids.flatMap(id=>{
       const s=GAME_DATA.levels.find(x=>x.id===id);
       return s?s.items:[];
@@ -492,6 +519,7 @@ function loadQuestion(){
   const tEl=document.getElementById('target');
   tEl.classList.toggle('small',target.length>14);
   renderTarget();renderTyped();
+  renderNatural(queue[qi]);
   document.getElementById('status').textContent='打ち始めてください';
   document.getElementById('hint').textContent=hintFor(queue[qi]);
   if(inputMethod==='touch'){touchInput.value='';}
@@ -515,6 +543,14 @@ function renderTarget(){
     return `<span class="ch ${cls}" data-i="${i}">${disp}</span>`;
   }).join('');
 }
+/* お手本は1打鍵＝1字で分割表示するため、上下に乗る記号が本来の形に見えない。
+   そういう語だけ、続けて書いたときの綴りを併記する */
+function renderNatural(s){
+  const box=document.getElementById('natural');
+  const show=[...s].length>1 && hasCombining(s);
+  box.classList.toggle('show',show);
+  if(show)document.getElementById('naturalBody').textContent=s;
+}
 function flashBad(i){const el=document.querySelector(`.ch[data-i="${i}"]`);
   if(el){el.classList.add('bad');setTimeout(()=>el.classList.remove('bad'),200);}}
 function renderTyped(){
@@ -525,12 +561,16 @@ function renderTyped(){
 /* ================================================================ TIMER
    pause/resume対応。kbwarn復帰時は残り時間を保持して再開 */
 function startTimer(seconds){
-  clearInterval(timerId);timeLeft=seconds;updateTimer();
+  clearInterval(timerId);timeLeft=seconds;timerEnd=performance.now()+seconds*1000;
+  updateTimer();timerId=setInterval(tick,100);
+}
+function resumeTimer(){
+  clearInterval(timerId);timerEnd=performance.now()+timeLeft*1000;
   timerId=setInterval(tick,100);
 }
-function resumeTimer(){clearInterval(timerId);timerId=setInterval(tick,100);}
+/* 実際の経過時刻から残りを出す。0.1ずつ引くと別タブ中に時計が遅れるため */
 function tick(){
-  timeLeft-=0.1;
+  timeLeft=Math.max(0,(timerEnd-performance.now())/1000);
   if(timeLeft<=0){timeLeft=0;updateTimer();timeout();}
   else updateTimer();
 }
@@ -548,6 +588,8 @@ function timeout(){
   stopTimer();
   if(transitioning)return;
   transitioning=true;
+  /* 打てずに残った字は不正解として数える（数えないと全問時間切れでも正確率100%になる） */
+  totalKeys+=target.length-pos;
   for(let i=pos;i<target.length;i++){if(target[i]!==' ')recordMiss(target[i],'couldnt');}
   combo=0;updateHud();
   FX.onTimeout({});
@@ -599,6 +641,7 @@ function clearQuestion(){
 /* ================================================================ PHYSICAL INPUT */
 document.addEventListener('keydown',e=>{
   if(elGame.style.display!=='block')return;
+  if(e.key==='Escape'){e.preventDefault();abortGame();return;} /* 入力方式によらず中断 */
   if(inputMethod!=='physical')return;
   if(transitioning){e.preventDefault();return;}
 
@@ -629,6 +672,16 @@ function showKbWarn(){if(kbBad)return;kbBad=true;kbwarn.classList.add('show');
 function hideKbWarn(){if(!kbBad)return;kbBad=false;kbwarn.classList.remove('show');
   resumeTimer();/* 残り時間を保持して再開 */
   document.getElementById('status').textContent='再開しました';}
+
+/* 途中でやめる。最後まで打っていないので、この回の記録は保存しない */
+function abortGame(){
+  stopTimer();transitioning=true;
+  elGame.style.display='none';elSelect.style.display='block';
+  tapcue.classList.remove('show');kbwarn.classList.remove('show');kbBad=false;
+  document.getElementById('footNote').style.display='block';
+  renderCumWeak();
+}
+document.getElementById('quitBtn').onclick=e=>{e.stopPropagation();abortGame();};
 
 function recordMiss(ch,kind){if(!weak[ch])weak[ch]={couldnt:0,wrong:0,total:0};
   weak[ch][kind]++;weak[ch].total++;}
@@ -679,6 +732,21 @@ function renderCumWeak(){
   renderWeak(all,document.getElementById('cumList'));
   panel.classList.add('show');
 }
+/* 累積記録の消去。押し間違いを防ぐため2回押し（4秒で解除） */
+const resetBtn=document.getElementById('resetBtn');
+let resetArmed=null;
+function disarmReset(){clearTimeout(resetArmed);resetArmed=null;
+  resetBtn.classList.remove('armed');resetBtn.textContent='記録をリセット';}
+resetBtn.onclick=()=>{
+  if(!resetArmed){
+    resetBtn.classList.add('armed');resetBtn.textContent='もう一度押すと消えます';
+    resetArmed=setTimeout(disarmReset,4000);return;
+  }
+  disarmReset();
+  try{localStorage.removeItem(STORE_KEY);}catch(e){}
+  renderCumWeak();
+};
+
 document.getElementById('retryBtn').onclick=()=>start(level.id);
 document.getElementById('backBtn').onclick=()=>{
   elResults.style.display='none';elSelect.style.display='block';renderCumWeak();};
