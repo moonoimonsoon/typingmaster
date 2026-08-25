@@ -374,7 +374,7 @@ let level=null, queue=[], qi=0, target=[], pos=0, typed=[];
 let combo=0, maxCombo=0, totalKeys=0, correctKeys=0, startTime=0;
 let curHadError=false, kbBad=false, transitioning=false;
 let weak={};
-let timeLeft=0, timerId=null, timerEnd=0, qLimit=30;
+let timeLeft=0, timerId=null, timerEnd=0, qLimit=30, pendingNext=null;
 const STORE_KEY='mm_thai_typing_weak_v1';
 
 function isThaiChar(s){ return /[\u0E00-\u0E7F]/.test(s); }
@@ -503,6 +503,7 @@ function start(id){
   queue=shuffle(pool).slice(0,count);
   qi=0;combo=0;maxCombo=0;totalKeys=0;correctKeys=0;weak={};kbBad=false;transitioning=false;
   startTime=performance.now();
+  updateHud();/* 表示を初期化。しないと1打目まで前回のACC/COMBOが残る */
   elSelect.style.display='none';elResults.style.display='none';elGame.style.display='block';
   document.getElementById('hT').textContent=queue.length;
   tapcue.classList.toggle('show', inputMethod==='touch');
@@ -594,7 +595,7 @@ function timeout(){
   combo=0;updateHud();
   FX.onTimeout({});
   document.getElementById('status').textContent='時間切れ — 次の問題へ';
-  setTimeout(nextQuestion,500);
+  pendingNext=setTimeout(nextQuestion,500);
 }
 
 /* ================================================================ ENGINE (shared)
@@ -635,7 +636,7 @@ function clearQuestion(){
   if(perfect){combo++;maxCombo=Math.max(maxCombo,combo);}else combo=0;
   updateHud();
   FX.onClear({perfect,combo});
-  setTimeout(nextQuestion,260);
+  pendingNext=setTimeout(nextQuestion,260);
 }
 
 /* ================================================================ PHYSICAL INPUT */
@@ -675,6 +676,8 @@ function hideKbWarn(){if(!kbBad)return;kbBad=false;kbwarn.classList.remove('show
 
 /* 途中でやめる。最後まで打っていないので、この回の記録は保存しない */
 function abortGame(){
+  /* 予約済みの「次の問題へ」も取り消す。残すと中断後も裏でゲームが進み続ける */
+  clearTimeout(pendingNext);pendingNext=null;
   stopTimer();transitioning=true;
   elGame.style.display='none';elSelect.style.display='block';
   tapcue.classList.remove('show');kbwarn.classList.remove('show');kbBad=false;
@@ -685,7 +688,7 @@ document.getElementById('quitBtn').onclick=e=>{e.stopPropagation();abortGame();}
 
 function recordMiss(ch,kind){if(!weak[ch])weak[ch]={couldnt:0,wrong:0,total:0};
   weak[ch][kind]++;weak[ch].total++;}
-function nextQuestion(){stopTimer();qi++;loadQuestion();
+function nextQuestion(){pendingNext=null;stopTimer();qi++;loadQuestion();
   if(inputMethod==='touch'&&elGame.style.display==='block'){setTimeout(()=>touchInput.focus(),50);}}
 
 function updateHud(){
@@ -749,7 +752,9 @@ resetBtn.onclick=()=>{
 
 document.getElementById('retryBtn').onclick=()=>start(level.id);
 document.getElementById('backBtn').onclick=()=>{
-  elResults.style.display='none';elSelect.style.display='block';renderCumWeak();};
+  elResults.style.display='none';elSelect.style.display='block';
+  document.getElementById('footNote').style.display='block';/* タッチで隠した注記を戻す */
+  renderCumWeak();};
 
 /* ================================================================ UTIL */
 function shuffle(a){a=[...a];for(let i=a.length-1;i>0;i--){
