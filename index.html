@@ -188,6 +188,21 @@
   .atoggle.off{opacity:.4}
   a.ghost{text-decoration:none;display:inline-block}
 
+  /* フッタ: 他アプリと同じアイコンセット。MMロゴでハブサイトのトップへ戻れる */
+  footer{margin-top:30px;text-align:center;font-family:'Silkscreen';font-size:9px;
+    letter-spacing:.06em;color:var(--muted);line-height:1.8}
+  footer .cap{margin-bottom:14px}
+  .social-row{display:flex;justify-content:center;gap:14px;margin-bottom:14px}
+  .social-row a{width:46px;height:46px;border-radius:13px;display:grid;place-items:center;
+    background:rgba(159,217,42,.08);border:1px solid rgba(159,217,42,.22);
+    color:var(--lime);transition:transform .15s,background .15s,box-shadow .15s}
+  .social-row a:hover{transform:translateY(-2px);background:rgba(159,217,42,.16);
+    box-shadow:0 6px 16px rgba(159,217,42,.22)}
+  .social-row a svg{width:22px;height:22px;display:block;pointer-events:none}
+  footer .handle{margin-bottom:10px}
+  footer .made{font-family:'Sarabun',sans-serif;font-size:13px;letter-spacing:0}
+  footer .made a{color:var(--ink)}
+
   .note{font-size:11px;color:var(--muted);text-align:center;margin-top:18px;line-height:1.6}
   .kedlink{cursor:pointer;display:inline-block;border:1px solid var(--line);border-radius:999px;
     padding:4px 14px;transition:.15s}
@@ -336,6 +351,31 @@
     </div>
   </div>
 
+  <!-- フッタ: 他アプリ共通のアイコンセット。MMロゴでハブサイトのトップへ -->
+  <footer>
+    <div class="cap">หมูน้อย · LITTLE PIG</div>
+    <div class="social-row">
+      <a href="https://www.youtube.com/@moonoimonsoon" target="_blank" rel="noopener noreferrer" aria-label="Moonoi Monsoon on YouTube">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M5.5 4.6h13a4 4 0 0 1 4 4v6.8a4 4 0 0 1-4 4h-13a4 4 0 0 1-4-4V8.6a4 4 0 0 1 4-4Zm4.5 4l6.2 3.4L10 15.4Z"/></svg>
+      </a>
+      <a href="https://www.instagram.com/moonoi_monsoon" target="_blank" rel="noopener noreferrer" aria-label="Moonoi Monsoon on Instagram">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5.4" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="2"/><circle cx="17.4" cy="6.6" r="1.4" fill="currentColor"/></svg>
+      </a>
+    </div>
+    <div class="social-row">
+      <a href="https://open.spotify.com/show/033RrLqYNJf0oa2FihbHQP" target="_blank" rel="noopener noreferrer" aria-label="Podcast on Spotify">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="12" cy="12" r="9.6" stroke-width="1.7"/><path d="M7.1 9.3c3.3-.95 6.9-.6 9.7 1" stroke-width="1.9"/><path d="M7.9 12.6c2.7-.75 5.6-.45 7.9.9" stroke-width="1.8"/><path d="M8.7 15.7c2.1-.55 4.3-.3 6 .7" stroke-width="1.7"/></svg>
+      </a>
+      <a href="https://podcasts.apple.com/jp/podcast/id6792235277" target="_blank" rel="noopener noreferrer" aria-label="Podcast on Apple Podcasts">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="12" cy="12" r="9.6" stroke="currentColor" stroke-width="1.7"/><rect x="10.1" y="5.9" width="3.8" height="7.2" rx="1.9" fill="currentColor"/><path d="M7.9 12.1a4.1 4.1 0 0 0 8.2 0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M12 16.2v2.3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </a>
+      <a href="https://moonoimonsoon.github.io/" aria-label="Moonoi Monsoon top page">
+        <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><g stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" stroke-width="11"><path d="M16 76 V36 L33 58 L50 36 V76"/><path d="M50 76 V36 L67 58 L84 36 V76"/></g></svg>
+      </a>
+    </div>
+    <div class="handle">@MOONOI_MONSOON</div>
+    <div class="made">Made by Moonoi Monsoon · <a href="https://moonoimonsoon.github.io/">moonoimonsoon.github.io</a></div>
+  </footer>
 </div>
 
 <script>
@@ -612,7 +652,8 @@ const AUDIO={
     this.stopScene();this.resume();
     const c=this.ctx,out=c.createGain();
     out.gain.value=0;out.connect(c.destination);
-    out.gain.linearRampToValueAtTime(.16,c.currentTime+1.2);
+    const lv=(name==='menu')?.24:.16;/* メニューの夜の虫は控えめすぎたので大きめに */
+    out.gain.linearRampToValueAtTime(lv,c.currentTime+1.2);
     this.cur={name,out,handle:BGM_SCENES[name](c,out)};
   },
   stopScene(){
