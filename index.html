@@ -235,7 +235,7 @@
         <span class="key" id="testKey" style="display:none"></span>
       </div>
       <div class="state idle" id="kbState">未確認</div>
-      <div class="hintline" id="kbHint">タイ語入力モードがONか確認します（英字が出たらモード切替が必要）・Shift でやり直し</div>
+      <div class="hintline" id="kbHint">タイ語入力モードがONか確認します（英字が出たらモード切替が必要）・Backspace で消せます</div>
     </div>
     </div>
 
@@ -572,9 +572,10 @@ const testKey=document.getElementById('testKey');
 const testPlaceholder=document.getElementById('testPlaceholder');
 const kbState=document.getElementById('kbState');
 const kbHint=document.getElementById('kbHint');
-const KB_HINT_DEFAULT='タイ語入力モードがONか確認します（英字が出たらモード切替が必要）・Shift でやり直し';
+const KB_HINT_DEFAULT='タイ語入力モードがONか確認します（英字が出たらモード切替が必要）・Backspace で消せます';
 testbox.addEventListener('keydown',e=>{
-  if(e.key==='Shift'){/* チェックを最初の状態に戻す */
+  if(e.key==='Backspace'||e.key==='Delete'){/* 表示を消して最初の状態に戻す */
+    e.preventDefault();
     kbVerified=false;
     testKey.style.display='none';testPlaceholder.style.display='inline';
     kbState.textContent='未確認';kbState.className='state idle';
