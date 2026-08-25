@@ -432,17 +432,180 @@ const FX = {
    AUDIO — BGMと効果音
    ----------------------------------------------------------------
    音源ファイルは使わず、その場で音を合成する(著作権フリー・追加読込ゼロ)。
-   BGMはローイクラトンの夜のイメージ: 五音音階のやわらかい鐘の音が
-   不規則な間隔でゆっくり漂い、まれに遠くで低いゴング。ビートは刻まない。
-   決まった曲ではなく毎回すこしずつ違う。
+   BGMは場面で切り替える: メニュー(選択・リザルト)=夜の虫と遠いパッド。
+   ゲーム中=ミニマル・パルス/シンギングボウル/オルガン・パッド/風鈴/
+   静かなアルペジオ の5種を、プレイするたびに順番に入れ替える。
+   聴き比べの原本は WIP/20260825_BGMサンプル_v2.html。
    ブラウザは音の自動再生を禁止しているため、STARTボタン(ユーザー操作)で
    音の装置を起こす。ON/OFFはlocalStorageに保存。
    ================================================================ */
 const AUDIO_KEY='mm_thai_typing_audio_v1';
-/* ラ長調ふうの五音音階(2オクターブ)。タイ古典の雰囲気に寄せた選び */
-const BGM_SCALE=[349.23,392.00,440.00,523.25,587.33,698.46,783.99,880.00];
+/* ---- BGM部品: ディレイの残響 / 鐘 / ゆらぎ用LFO ---- */
+function bgmSpace(c,out,time,fb,wet){
+  const d=c.createDelay(3);d.delayTime.value=time;
+  const f=c.createGain();f.gain.value=fb;
+  const w=c.createGain();w.gain.value=wet;
+  d.connect(f);f.connect(d);d.connect(w);w.connect(out);
+  return d;
+}
+function bgmBell(c,dest,freq,when,vol,att,dec){
+  [[0,1],[1200,.16]].forEach(([cents,mul])=>{
+    const o=c.createOscillator(),g=c.createGain();
+    o.type='sine';o.frequency.value=freq*Math.pow(2,cents/1200);
+    g.gain.setValueAtTime(0,when);
+    g.gain.linearRampToValueAtTime(vol*mul,when+att);
+    g.gain.exponentialRampToValueAtTime(.0001,when+att+dec);
+    o.connect(g);g.connect(dest);o.start(when);o.stop(when+att+dec+.1);
+  });
+}
+function bgmLfo(c,param,hz,depth){
+  const o=c.createOscillator(),g=c.createGain();
+  o.type='sine';o.frequency.value=hz;g.gain.value=depth;
+  o.connect(g);g.connect(param);o.start();return o;
+}
+
+/* ---- 場面ごとのBGM。(ctx,out)を受けて{ivs:タイマー,oscs:止める音源}を返す ---- */
+/* メニュー: 夜の虫と遠いパッド */
+function sceneMenu(c,out){
+  const oscs=[];
+  [[174.61,.02],[261.63,.012]].forEach(([f,base])=>{
+    const o=c.createOscillator(),g=c.createGain();
+    o.type='sine';o.frequency.value=f;g.gain.value=base;
+    oscs.push(bgmLfo(c,g.gain,.05,base*.35));
+    o.connect(g);g.connect(out);o.start();oscs.push(o);
+  });
+  const bus=c.createGain();bus.gain.value=.75;bus.connect(out);
+  function chirp(t,f){
+    const n=4+Math.floor(Math.random()*3);
+    for(let i=0;i<n;i++){
+      const o=c.createOscillator(),g=c.createGain();
+      o.type='sine';o.frequency.value=f+Math.random()*200;
+      const s=t+i*.032;
+      g.gain.setValueAtTime(0,s);g.gain.linearRampToValueAtTime(.011,s+.006);
+      g.gain.linearRampToValueAtTime(0,s+.024);
+      o.connect(g);g.connect(bus);o.start(s);o.stop(s+.03);
+    }
+  }
+  let n1=c.currentTime+.8,n2=c.currentTime+1.4;
+  const iv=setInterval(()=>{
+    while(n1<c.currentTime+1.5){chirp(n1,4100);n1+=1.1+Math.random()*.9;}
+    while(n2<c.currentTime+1.5){chirp(n2,3500);n2+=1.7+Math.random()*1.4;}
+  },300);
+  return {ivs:[iv],oscs};
+}
+/* L: ミニマル・パルス(2声部が違う周期で回る) */
+function sceneL(c,out){
+  const bus=c.createGain();bus.connect(out);
+  bus.connect(bgmSpace(c,out,.6,.35,.3));
+  const lp=c.createBiquadFilter();lp.type='lowpass';lp.frequency.value=1800;lp.Q.value=.5;
+  lp.connect(bus);
+  function tick(f,t,v){
+    const o=c.createOscillator(),g=c.createGain();
+    o.type='triangle';o.frequency.value=f;
+    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(v,t+.01);
+    g.gain.exponentialRampToValueAtTime(.0001,t+.5);
+    o.connect(g);g.connect(lp);o.start(t);o.stop(t+.55);
+  }
+  let t1=c.currentTime+.3,t2=c.currentTime+.3;
+  const iv=setInterval(()=>{
+    while(t1<c.currentTime+1.6){tick(349.23,t1,.04);t1+=.66;}
+    while(t2<c.currentTime+1.6){tick(523.25,t2,.022);t2+=.99;}
+  },300);
+  return {ivs:[iv],oscs:[]};
+}
+/* K: シンギングボウル(非整数倍音の長い余韻) */
+function sceneK(c,out){
+  const oscs=[];
+  const dr=c.createOscillator(),dg=c.createGain();
+  dr.type='sine';dr.frequency.value=87.31;dg.gain.value=.015;
+  oscs.push(bgmLfo(c,dg.gain,.06,.006));
+  dr.connect(dg);dg.connect(out);dr.start();oscs.push(dr);
+  const bus=c.createGain();bus.connect(out);
+  bus.connect(bgmSpace(c,out,1.2,.4,.4));
+  let nextT=c.currentTime+1;
+  const iv=setInterval(()=>{
+    while(nextT<c.currentTime+3){
+      const t=nextT,base=Math.random()<.5?174.61:220;
+      [[1,.05],[2.71,.014],[5.42,.005]].forEach(([mul,v])=>{
+        const o=c.createOscillator(),g=c.createGain();
+        o.type='sine';o.frequency.value=base*mul;
+        g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(v,t+.04);
+        g.gain.exponentialRampToValueAtTime(.0001,t+14);
+        o.connect(g);g.connect(bus);o.start(t);o.stop(t+14.1);
+      });
+      nextT=t+14+Math.random()*8;
+    }
+  },900);
+  return {ivs:[iv],oscs};
+}
+/* N: オルガン・パッド(和音が10秒単位で入れ替わる) */
+function sceneN(c,out){
+  const lp=c.createBiquadFilter();lp.type='lowpass';lp.frequency.value=1000;lp.Q.value=.4;
+  lp.connect(out);
+  const CH=[[174.61,220,261.63],[146.83,220,293.66],[130.81,196,261.63],[174.61,233.08,293.66]];
+  let ci=0,nextT=c.currentTime+.2;
+  const iv=setInterval(()=>{
+    while(nextT<c.currentTime+3){
+      const t=nextT,chord=CH[ci%CH.length];ci++;
+      chord.forEach(f=>{
+        [[1,.03],[2,.009]].forEach(([mul,v])=>{
+          const o=c.createOscillator(),g=c.createGain();
+          o.type='sine';o.frequency.value=f*mul;
+          g.gain.setValueAtTime(0,t);
+          g.gain.linearRampToValueAtTime(v,t+2.5);
+          g.gain.linearRampToValueAtTime(v*.85,t+7);
+          g.gain.linearRampToValueAtTime(.0001,t+10);
+          o.connect(g);g.connect(lp);o.start(t);o.stop(t+10.1);
+        });
+      });
+      nextT=t+8.5; /* 次の和音と1.5秒重ねてつなぎ目を消す */
+    }
+  },700);
+  return {ivs:[iv],oscs:[]};
+}
+/* O: 風鈴(風のうねりで鳴る密度が変わる) */
+function sceneO(c,out){
+  const bus=c.createGain();bus.connect(out);
+  bus.connect(bgmSpace(c,out,.9,.4,.45));
+  const HI=[1046.5,1174.66,1318.51,1567.98,1760];
+  const t0=c.currentTime;
+  const iv=setInterval(()=>{
+    const wind=Math.max(0,Math.sin((c.currentTime-t0)*.09));
+    if(Math.random()<.06+wind*.4){
+      const f=HI[Math.floor(Math.random()*HI.length)];
+      bgmBell(c,bus,f,c.currentTime+.05,.012+Math.random()*.022,.01,3);
+    }
+  },180);
+  return {ivs:[iv],oscs:[]};
+}
+/* H: 静かなアルペジオ(同じ8音が一定の歩幅で回る) */
+function sceneH(c,out){
+  const bus=c.createGain();bus.connect(out);
+  bus.connect(bgmSpace(c,out,.7,.3,.3));
+  const lp=c.createBiquadFilter();lp.type='lowpass';lp.frequency.value=1200;lp.Q.value=.5;
+  lp.connect(bus);
+  const SC=[174.61,196,220,261.63,293.66,349.23];
+  const SEQ=[0,2,4,3,5,3,2,1];
+  let i=0,nextT=c.currentTime+.3;
+  const iv=setInterval(()=>{
+    while(nextT<c.currentTime+2){
+      const t=nextT;
+      const o=c.createOscillator(),g=c.createGain();
+      o.type='triangle';o.frequency.value=SC[SEQ[i%SEQ.length]];i++;
+      g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.06,t+.15);
+      g.gain.exponentialRampToValueAtTime(.0001,t+2.6);
+      o.connect(g);g.connect(lp);o.start(t);o.stop(t+2.7);
+      nextT=t+1.15;
+    }
+  },300);
+  return {ivs:[iv],oscs:[]};
+}
+const BGM_SCENES={menu:sceneMenu,l:sceneL,k:sceneK,n:sceneN,o:sceneO,h:sceneH};
+const GAME_BGM_ROT=['l','k','n','o','h'];
+const BGM_IDX_KEY='mm_thai_typing_bgm_idx';
+
 const AUDIO={
-  ctx:null,bgmOn:true,seOn:true,bgmTimer:null,nextT:0,lastGong:0,degree:3,
+  ctx:null,bgmOn:true,seOn:true,cur:null,
   load(){try{const s=JSON.parse(localStorage.getItem(AUDIO_KEY));
     if(s){this.bgmOn=s.bgm!==false;this.seOn=s.se!==false;}}catch(e){}},
   save(){try{localStorage.setItem(AUDIO_KEY,JSON.stringify({bgm:this.bgmOn,se:this.seOn}));}catch(e){}},
@@ -451,71 +614,39 @@ const AUDIO={
     const C=window.AudioContext||window.webkitAudioContext;if(!C)return;
     const c=this.ctx=new C();
     this.seBus=c.createGain();this.seBus.gain.value=.5;this.seBus.connect(c.destination);
-    this.bgmOut=c.createGain();this.bgmOut.gain.value=0;this.bgmOut.connect(c.destination);
-    this.bgmBus=c.createGain();this.bgmBus.connect(this.bgmOut);
-    /* お寺の境内のような広がりをディレイで作る */
-    const d=c.createDelay(2);d.delayTime.value=.62;
-    const fb=c.createGain();fb.gain.value=.26;
-    const wet=c.createGain();wet.gain.value=.32;
-    this.bgmBus.connect(d);d.connect(fb);fb.connect(d);d.connect(wet);wet.connect(this.bgmOut);
   },
   resume(){if(this.ctx&&this.ctx.state==='suspended')this.ctx.resume();},
-  /* やわらかい鐘の音。立ち上がりを遅くして打音感を消す(オクターブ上の倍音で微光) */
-  tone(freq,when,vol){
-    const c=this.ctx;
-    [[0,'sine',1],[1200,'sine',.16]].forEach(([cents,type,mul])=>{
-      const o=c.createOscillator(),g=c.createGain();
-      o.type=type;o.frequency.value=freq*Math.pow(2,cents/1200);
-      g.gain.setValueAtTime(0,when);
-      g.gain.linearRampToValueAtTime(vol*mul,when+.55);
-      g.gain.exponentialRampToValueAtTime(.0001,when+4.2);
-      o.connect(g);g.connect(this.bgmBus);o.start(when);o.stop(when+4.3);
-    });
-  },
-  /* 低いゴング。まれに遠くで鳴る */
-  gong(when){
-    const c=this.ctx;
-    [[65.4,.08],[98.1,.035]].forEach(([f,v])=>{
-      const o=c.createOscillator(),g=c.createGain();
-      o.type='sine';o.frequency.value=f;
-      g.gain.setValueAtTime(0,when);
-      g.gain.linearRampToValueAtTime(v,when+.3);
-      g.gain.exponentialRampToValueAtTime(.0001,when+5);
-      o.connect(g);g.connect(this.bgmBus);o.start(when);o.stop(when+5.1);
-    });
-  },
-  startBgm(){
+  /* 指定の場面BGMを開始(前の場面はフェードアウト) */
+  startScene(name){
     if(!this.ctx||!this.bgmOn)return;
-    this.resume();this.stopBgmTimer();
-    this.nextT=this.ctx.currentTime+.15;this.lastGong=-99;this.degree=3;
-    const n=this.ctx.currentTime;
-    this.bgmOut.gain.cancelScheduledValues(n);
-    this.bgmOut.gain.setValueAtTime(this.bgmOut.gain.value,n);
-    this.bgmOut.gain.linearRampToValueAtTime(.13,n+1.5);
-    this.bgmTimer=setInterval(()=>this.schedule(),300);
+    this.stopScene();this.resume();
+    const c=this.ctx,out=c.createGain();
+    out.gain.value=0;out.connect(c.destination);
+    out.gain.linearRampToValueAtTime(.16,c.currentTime+1.2);
+    this.cur={name,out,handle:BGM_SCENES[name](c,out)};
   },
-  /* 少し先まで音を予約しておく方式。等間隔にせず1.6〜3.2秒のゆらぎで漂わせる */
-  schedule(){
-    while(this.nextT<this.ctx.currentTime+1.6){
-      const t=this.nextT;
-      const move=[-2,-1,-1,1,1,2][Math.floor(Math.random()*6)];
-      this.degree=Math.max(0,Math.min(BGM_SCALE.length-1,this.degree+move));
-      this.tone(BGM_SCALE[this.degree],t,.07);
-      /* ときどき低めの音を少し遅らせて重ね、やわらかい和音に */
-      if(Math.random()<.3)this.tone(BGM_SCALE[Math.max(0,this.degree-3)],t+.5+Math.random()*.9,.04);
-      /* ゴングは20秒以上あけて、まれに */
-      if(t-this.lastGong>20&&Math.random()<.25){this.gong(t+.4);this.lastGong=t;}
-      this.nextT=t+1.6+Math.random()*1.6;
-    }
-  },
-  stopBgmTimer(){clearInterval(this.bgmTimer);this.bgmTimer=null;},
-  stopBgm(){
-    if(!this.ctx)return;
-    this.stopBgmTimer();
+  stopScene(){
+    if(!this.cur||!this.ctx)return;
+    const {out,handle}=this.cur;this.cur=null;
     const n=this.ctx.currentTime;
-    this.bgmOut.gain.cancelScheduledValues(n);
-    this.bgmOut.gain.setValueAtTime(this.bgmOut.gain.value,n);
-    this.bgmOut.gain.linearRampToValueAtTime(0,n+.8);
+    out.gain.cancelScheduledValues(n);
+    out.gain.setValueAtTime(out.gain.value,n);
+    out.gain.linearRampToValueAtTime(0,n+.8);
+    handle.ivs.forEach(clearInterval);
+    setTimeout(()=>{handle.oscs.forEach(o=>{try{o.stop();}catch(e){}});
+      try{out.disconnect();}catch(e){}},1000);
+  },
+  /* メニュー(選択・リザルト)では夜の虫。すでに鳴っていれば続ける */
+  startMenuBgm(){
+    if(this.cur&&this.cur.name==='menu')return;
+    this.startScene('menu');
+  },
+  /* ゲーム中はプレイのたびに L→K→N→O→H を順に入れ替える */
+  startGameBgm(){
+    let i=0;try{i=parseInt(localStorage.getItem(BGM_IDX_KEY))||0;}catch(e){}
+    const name=GAME_BGM_ROT[i%GAME_BGM_ROT.length];
+    try{localStorage.setItem(BGM_IDX_KEY,String((i+1)%GAME_BGM_ROT.length));}catch(e){}
+    this.startScene(name);
   },
   /* 効果音: 正解=短く明るい打音 / 不正解=低くこもった音 */
   se(kind){
@@ -691,7 +822,7 @@ function start(id){
   qi=0;combo=0;maxCombo=0;totalKeys=0;correctKeys=0;weak={};kbBad=false;transitioning=false;
   startTime=performance.now();
   updateHud();/* 表示を初期化。しないと1打目まで前回のACC/COMBOが残る */
-  AUDIO.init();AUDIO.startBgm();/* STARTのクリック=ユーザー操作なので音を出せる */
+  AUDIO.init();AUDIO.startGameBgm();/* STARTのクリック=ユーザー操作なので音を出せる */
   elSelect.style.display='none';elResults.style.display='none';elGame.style.display='block';
   document.getElementById('hT').textContent=queue.length;
   tapcue.classList.toggle('show', inputMethod==='touch');
@@ -873,7 +1004,7 @@ function hideKbWarn(){if(!kbBad)return;kbBad=false;kbwarn.classList.remove('show
 function abortGame(){
   /* 予約済みの「次の問題へ」も取り消す。残すと中断後も裏でゲームが進み続ける */
   clearTimeout(pendingNext);pendingNext=null;
-  stopTimer();transitioning=true;AUDIO.stopBgm();
+  stopTimer();transitioning=true;AUDIO.startMenuBgm();/* メニューの夜の虫に戻す */
   elGame.style.display='none';elSelect.style.display='block';
   tapcue.classList.remove('show');kbwarn.classList.remove('show');kbBad=false;
   renderCumWeak();
@@ -898,7 +1029,8 @@ function flashOk(){const p=document.getElementById('prompt');
 
 /* ================================================================ RESULTS */
 function finish(){
-  stopTimer();document.getElementById('bar').style.width='100%';saveWeak();AUDIO.stopBgm();
+  stopTimer();document.getElementById('bar').style.width='100%';saveWeak();
+  AUDIO.startMenuBgm();/* リザルトからはメニューの夜の虫に戻す */
   const acc=totalKeys?Math.round(correctKeys/totalKeys*100):100;
   const mins=(performance.now()-startTime)/60000;
   const cpm=mins>0?Math.round(correctKeys/mins):0;
@@ -967,8 +1099,14 @@ function paintAudioToggles(){
   seToggle.classList.toggle('off',!AUDIO.seOn);
 }
 bgmToggle.onclick=()=>{AUDIO.bgmOn=!AUDIO.bgmOn;AUDIO.save();paintAudioToggles();
-  if(!AUDIO.bgmOn)AUDIO.stopBgm();};
+  if(!AUDIO.bgmOn)AUDIO.stopScene();
+  else{AUDIO.init();AUDIO.startMenuBgm();}};
 seToggle.onclick=()=>{AUDIO.seOn=!AUDIO.seOn;AUDIO.save();paintAudioToggles();};
+
+/* メニューBGMは最初のクリック/キー操作で開始(ブラウザは操作なしに音を出せないため) */
+function bootMenuBgm(){AUDIO.init();if(elGame.style.display!=='block')AUDIO.startMenuBgm();}
+document.addEventListener('pointerdown',bootMenuBgm,{once:true});
+document.addEventListener('keydown',bootMenuBgm,{once:true});
 
 document.getElementById('kedLink').onclick=()=>{
   document.getElementById('kedBox').classList.toggle('show');};
