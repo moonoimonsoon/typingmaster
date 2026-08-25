@@ -131,12 +131,6 @@
   .target .ch.todo{color:var(--muted)}
   .target .ch.bad{color:var(--ng);animation:badp .2s}
   @keyframes badp{0%{transform:scale(1.3)}100%{transform:scale(1)}}
-  /* 本来の綴り表示。上下に乗る記号は1字ずつ分割すると崩れるため並べて示す */
-  .natural{display:none;margin-top:12px;padding-top:10px;border-top:1px dashed var(--line)}
-  .natural.show{display:block}
-  .natural .nlabel{font-family:'Silkscreen';font-size:9px;color:var(--lime-dim);
-    letter-spacing:1px;display:block;margin-bottom:4px}
-  .natural .nbody{font-size:24px;color:var(--ink);word-break:break-word;line-height:1.5}
   .hint{color:var(--muted);font-size:14px;margin-top:10px;min-height:20px}
 
   .typed{text-align:center;font-size:22px;letter-spacing:2px;min-height:30px;
@@ -308,10 +302,6 @@
 
     <div class="prompt" id="prompt">
       <div class="target" id="target"></div>
-      <div class="natural" id="natural">
-        <span class="nlabel">本来の綴り</span>
-        <span class="nbody" id="naturalBody"></span>
-      </div>
       <div class="hint" id="hint"></div>
     </div>
     <div class="typed" id="typed"><span class="caret"></span></div>
@@ -372,7 +362,7 @@ const GAME_DATA = {
       chars:'', kind:'word', badge:'単語 10コ',
       items:['นก','ตา','มา','ดี','ไป','กิน','นอน','บ้าน','หมา','น้ำ'] },
     { id:'shift', ln:'LV.4', t:'声調記号・上段', d:'上に乗る記号を含む単語（難所）',
-      chars:'่ ้ ๊ ๋ ็ ั', kind:'word', physicalFocus:true, badge:'',
+      chars:'◌่ ◌้ ◌๊ ◌๋ ◌็ ◌ั', kind:'word', physicalFocus:true, badge:'',
       items:['ก็','ก๋','ปี๋','โต๊ะ','เก้า','ผู้','ครับ','ค่ะ'] },
     { id:'mix', ln:'LV.5', t:'ミックス', d:'LV1・2・4をまぜて出題',
       chars:'', kind:'mix', badge:'混合 全レベル',
@@ -680,8 +670,8 @@ const STORE_KEY='mm_thai_typing_weak_v1';
 
 function isThaiChar(s){ return /[\u0E00-\u0E7F]/.test(s); }
 /* \u5B50\u97F3\u306E\u4E0A\u4E0B\u306B\u4E57\u308B\u8A18\u53F7\uFF08\u58F0\u8ABF\u8A18\u53F7\u30FB\u4E0A\u4E0B\u306E\u6BCD\u97F3\uFF09\u30021\u5B57\u305A\u3064\u5206\u3051\u308B\u3068\u70B9\u7DDA\u306E\u4E38\u304C\u51FA\u3066\u5D29\u308C\u308B */
-const COMBINING=/[\u0E31\u0E34-\u0E3A\u0E47-\u0E4E]/;
-function hasCombining(s){ return COMBINING.test(s); }
+/* \u8868\u793A\u306E\u304B\u305F\u307E\u308A\u5224\u5B9A: \u4E0A\u4E0B\u306B\u4E57\u308B\u8A18\u53F7(\u58F0\u8ABF\u30FB\u4E0A\u4E0B\u6BCD\u97F3\u30FB\u0E31)\u3068\u0E33\u306F\u76F4\u524D\u306E\u5B57\u3068\u3072\u3068\u307E\u3068\u307E\u308A */
+const CLUSTER_JOIN=/[\u0E31\u0E33\u0E34-\u0E3A\u0E47-\u0E4E]/;
 function loadWeakAll(){try{const r=localStorage.getItem(STORE_KEY);if(r)return JSON.parse(r);}catch(e){}return null;}
 function saveWeak(){try{
   const all=loadWeakAll()||{};
@@ -837,8 +827,8 @@ function loadQuestion(){
   document.getElementById('bar').style.width=(qi/queue.length*100)+'%';
   const tEl=document.getElementById('target');
   tEl.classList.toggle('small',target.length>14);
+  buildClusters();
   renderTarget();renderTyped();
-  renderNatural(queue[qi]);
   document.getElementById('status').textContent='打ち始めてください';
   document.getElementById('hint').textContent=hintFor(queue[qi]);
   if(inputMethod==='touch'){touchInput.value='';}
@@ -855,23 +845,31 @@ function hintFor(s){
   if(s.includes(' '))return 'スペースも入力します（語の区切り）';
   return '';
 }
+/* 打鍵単位を表示用のかたまりにまとめる。1打鍵=1<span>だと上下の記号が
+   iOS Safari等で潰れるため、かたまり単位の<span>にして正しく合成させる
+   (これにより旧「本来の綴り」の併記は不要になった) */
+let clusters=[];
+function buildClusters(){
+  clusters=[];
+  for(let i=0;i<target.length;i++){
+    if(i>0&&CLUSTER_JOIN.test(target[i])&&target[i-1]!==' ')
+      clusters[clusters.length-1].e=i+1;
+    else clusters.push({s:i,e:i+1});
+  }
+}
 function renderTarget(){
   const el=document.getElementById('target');
-  el.innerHTML=target.map((c,i)=>{
-    let cls='todo';if(i<pos)cls='done';else if(i===pos)cls='cur';
-    const disp=(c===' ')?'·':c;
-    return `<span class="ch ${cls}" data-i="${i}">${disp}</span>`;
+  el.innerHTML=clusters.map((cl,ci)=>{
+    let cls='todo';
+    if(pos>=cl.e)cls='done';else if(pos>=cl.s)cls='cur';
+    const txt=target.slice(cl.s,cl.e).join('');
+    const disp=(txt===' ')?'·':txt;
+    return `<span class="ch ${cls}" data-c="${ci}">${disp}</span>`;
   }).join('');
 }
-/* お手本は1打鍵＝1字で分割表示するため、上下に乗る記号が本来の形に見えない。
-   そういう語だけ、続けて書いたときの綴りを併記する */
-function renderNatural(s){
-  const box=document.getElementById('natural');
-  const show=[...s].length>1 && hasCombining(s);
-  box.classList.toggle('show',show);
-  if(show)document.getElementById('naturalBody').textContent=s;
-}
-function flashBad(i){const el=document.querySelector(`.ch[data-i="${i}"]`);
+function flashBad(i){
+  const ci=clusters.findIndex(cl=>i>=cl.s&&i<cl.e);
+  const el=document.querySelector(`.ch[data-c="${ci}"]`);
   if(el){el.classList.add('bad');setTimeout(()=>el.classList.remove('bad'),200);}}
 function renderTyped(){
   const shown=typed.map(c=>c===' '?'·':c).join('');
