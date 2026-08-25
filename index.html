@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Moonoi Monsoon — Thai Typing Trainer</title>
+<title>Moonoi Monsoon — Thai Typing Master</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Silkscreen&family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
@@ -12,6 +12,7 @@
     --bg:#0a0f04; --bg2:#0d1407; --lime:#9FD92A; --lime-dim:#6b9418;
     --ember:#ff8c2b; --ink:#dfe8c4; --muted:#7d8a5f;
     --ok:#9FD92A; --ng:#ff5544; --panel:#121a09; --line:#2a3815;
+    --cyan:#5BC8D8; /* Reference Chartsの水色。累積苦手とKBチェックの案内色 */
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%}
@@ -76,19 +77,26 @@
   .kbcheck .testbox{font-size:15px;color:var(--ink);background:#0a0f04;
     border:1px dashed var(--line);border-radius:8px;padding:12px;margin-bottom:8px;
     min-height:46px;display:flex;align-items:center;justify-content:center;gap:8px}
+  .kbcheck .testbox:focus{outline:none;border:1px solid var(--cyan);
+    box-shadow:0 0 0 1px var(--cyan),0 0 12px rgba(91,200,216,.25)}
   .kbcheck .testbox .key{font-size:28px;font-weight:700;color:var(--lime)}
   .kbcheck .state{font-family:'Silkscreen';font-size:12px;letter-spacing:1px}
   .kbcheck .state.ok{color:var(--ok)}
-  .kbcheck .state.ng{color:var(--ng)}
+  .kbcheck .state.ng{color:var(--cyan)}
   .kbcheck .state.idle{color:var(--muted)}
   .kbcheck .hintline{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5}
 
   /* cumulative weak-key panel (start screen) */
   #cumsec{display:none}
   #cumsec.show{display:block}
-  .cumweak{background:#0c1206;border:1px solid var(--line);
+  /* 累積苦手はチャート類と同じ水色系(今回ミスの赤と区別する) */
+  #cumsec .sectit{color:#54aebd}
+  .cumweak{background:rgba(91,200,216,.05);border:1px solid rgba(91,200,216,.32);
     border-radius:10px;padding:16px}
   .cumweak .sub2{font-size:11px;color:var(--muted);margin-bottom:10px}
+  .cumweak .wch{color:var(--cyan)}
+  .cumweak .wbar .f{background:linear-gradient(90deg,#23606c,var(--cyan))}
+  .cumweak .wtype span b{color:var(--cyan)}
 
   #game{display:none}
   .hud{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;
@@ -196,7 +204,7 @@
 <div class="wrap">
   <header>
     <div class="logo">◆ MOONOI MONSOON ◆</div>
-    <h1>THAI TYPING<br>TRAINER</h1>
+    <h1>THAI TYPING<br>MASTER</h1>
     <div class="sub">Kedmanee 配列 · タイ語タイピング練習</div>
   </header>
 
@@ -227,7 +235,7 @@
         <span class="key" id="testKey" style="display:none"></span>
       </div>
       <div class="state idle" id="kbState">未確認</div>
-      <div class="hintline" id="kbHint">タイ語入力モードがONか確認します（英字が出たらモード切替が必要）</div>
+      <div class="hintline" id="kbHint">タイ語入力モードがONか確認します（英字が出たらモード切替が必要）・Shift でやり直し</div>
     </div>
     </div>
 
@@ -399,8 +407,9 @@ const FX = {
    AUDIO — BGMと効果音
    ----------------------------------------------------------------
    音源ファイルは使わず、その場で音を合成する(著作権フリー・追加読込ゼロ)。
-   BGMはローイクラトンの夜のイメージ: ラナート(タイの木琴)風の五音音階の
-   つまびきに、低いゴングと残響。決まった曲ではなく毎回すこしずつ違う。
+   BGMはローイクラトンの夜のイメージ: 五音音階のやわらかい鐘の音が
+   不規則な間隔でゆっくり漂い、まれに遠くで低いゴング。ビートは刻まない。
+   決まった曲ではなく毎回すこしずつ違う。
    ブラウザは音の自動再生を禁止しているため、STARTボタン(ユーザー操作)で
    音の装置を起こす。ON/OFFはlocalStorageに保存。
    ================================================================ */
@@ -408,7 +417,7 @@ const AUDIO_KEY='mm_thai_typing_audio_v1';
 /* ラ長調ふうの五音音階(2オクターブ)。タイ古典の雰囲気に寄せた選び */
 const BGM_SCALE=[349.23,392.00,440.00,523.25,587.33,698.46,783.99,880.00];
 const AUDIO={
-  ctx:null,bgmOn:true,seOn:true,bgmTimer:null,nextT:0,step:0,degree:3,
+  ctx:null,bgmOn:true,seOn:true,bgmTimer:null,nextT:0,lastGong:0,degree:3,
   load(){try{const s=JSON.parse(localStorage.getItem(AUDIO_KEY));
     if(s){this.bgmOn=s.bgm!==false;this.seOn=s.se!==false;}}catch(e){}},
   save(){try{localStorage.setItem(AUDIO_KEY,JSON.stringify({bgm:this.bgmOn,se:this.seOn}));}catch(e){}},
@@ -420,59 +429,58 @@ const AUDIO={
     this.bgmOut=c.createGain();this.bgmOut.gain.value=0;this.bgmOut.connect(c.destination);
     this.bgmBus=c.createGain();this.bgmBus.connect(this.bgmOut);
     /* お寺の境内のような広がりをディレイで作る */
-    const d=c.createDelay(2);d.delayTime.value=.46;
-    const fb=c.createGain();fb.gain.value=.34;
-    const wet=c.createGain();wet.gain.value=.4;
+    const d=c.createDelay(2);d.delayTime.value=.62;
+    const fb=c.createGain();fb.gain.value=.26;
+    const wet=c.createGain();wet.gain.value=.32;
     this.bgmBus.connect(d);d.connect(fb);fb.connect(d);d.connect(wet);wet.connect(this.bgmOut);
   },
   resume(){if(this.ctx&&this.ctx.state==='suspended')this.ctx.resume();},
-  /* ラナート風: 三角波の短い打音＋わずかにずれた倍音 */
-  pluck(freq,when,vol){
+  /* やわらかい鐘の音。立ち上がりを遅くして打音感を消す(オクターブ上の倍音で微光) */
+  tone(freq,when,vol){
     const c=this.ctx;
-    [[0,'triangle',1],[7,'sine',.35]].forEach(([cents,type,mul])=>{
+    [[0,'sine',1],[1200,'sine',.16]].forEach(([cents,type,mul])=>{
       const o=c.createOscillator(),g=c.createGain();
       o.type=type;o.frequency.value=freq*Math.pow(2,cents/1200);
       g.gain.setValueAtTime(0,when);
-      g.gain.linearRampToValueAtTime(vol*mul,when+.01);
-      g.gain.exponentialRampToValueAtTime(.0001,when+1.1);
-      o.connect(g);g.connect(this.bgmBus);o.start(when);o.stop(when+1.2);
+      g.gain.linearRampToValueAtTime(vol*mul,when+.55);
+      g.gain.exponentialRampToValueAtTime(.0001,when+4.2);
+      o.connect(g);g.connect(this.bgmBus);o.start(when);o.stop(when+4.3);
     });
   },
-  /* 低いゴング。フレーズの節目に */
+  /* 低いゴング。まれに遠くで鳴る */
   gong(when){
     const c=this.ctx;
-    [[65.4,.15],[98.1,.07],[130.8,.05]].forEach(([f,v])=>{
+    [[65.4,.08],[98.1,.035]].forEach(([f,v])=>{
       const o=c.createOscillator(),g=c.createGain();
       o.type='sine';o.frequency.value=f;
       g.gain.setValueAtTime(0,when);
-      g.gain.linearRampToValueAtTime(v,when+.02);
-      g.gain.exponentialRampToValueAtTime(.0001,when+3.5);
-      o.connect(g);g.connect(this.bgmBus);o.start(when);o.stop(when+3.6);
+      g.gain.linearRampToValueAtTime(v,when+.3);
+      g.gain.exponentialRampToValueAtTime(.0001,when+5);
+      o.connect(g);g.connect(this.bgmBus);o.start(when);o.stop(when+5.1);
     });
   },
   startBgm(){
     if(!this.ctx||!this.bgmOn)return;
     this.resume();this.stopBgmTimer();
-    this.nextT=this.ctx.currentTime+.15;this.step=0;this.degree=3;
+    this.nextT=this.ctx.currentTime+.15;this.lastGong=-99;this.degree=3;
     const n=this.ctx.currentTime;
     this.bgmOut.gain.cancelScheduledValues(n);
     this.bgmOut.gain.setValueAtTime(this.bgmOut.gain.value,n);
-    this.bgmOut.gain.linearRampToValueAtTime(.16,n+1.2);
-    this.bgmTimer=setInterval(()=>this.schedule(),200);
+    this.bgmOut.gain.linearRampToValueAtTime(.13,n+1.5);
+    this.bgmTimer=setInterval(()=>this.schedule(),300);
   },
-  /* 少し先まで音を予約しておく方式。休符まじりの音階の散歩 */
+  /* 少し先まで音を予約しておく方式。等間隔にせず1.6〜3.2秒のゆらぎで漂わせる */
   schedule(){
-    const STEP=.46;
-    while(this.nextT<this.ctx.currentTime+.5){
+    while(this.nextT<this.ctx.currentTime+1.6){
       const t=this.nextT;
-      if(this.step%32===0)this.gong(t);
-      if(Math.random()<.72){
-        const move=[-2,-1,-1,1,1,2][Math.floor(Math.random()*6)];
-        this.degree=Math.max(0,Math.min(BGM_SCALE.length-1,this.degree+move));
-        this.pluck(BGM_SCALE[this.degree],t,.09);
-        if(Math.random()<.18)this.pluck(BGM_SCALE[Math.max(0,this.degree-2)],t+STEP/2,.05);
-      }
-      this.step++;this.nextT+=STEP;
+      const move=[-2,-1,-1,1,1,2][Math.floor(Math.random()*6)];
+      this.degree=Math.max(0,Math.min(BGM_SCALE.length-1,this.degree+move));
+      this.tone(BGM_SCALE[this.degree],t,.07);
+      /* ときどき低めの音を少し遅らせて重ね、やわらかい和音に */
+      if(Math.random()<.3)this.tone(BGM_SCALE[Math.max(0,this.degree-3)],t+.5+Math.random()*.9,.04);
+      /* ゴングは20秒以上あけて、まれに */
+      if(t-this.lastGong>20&&Math.random()<.25){this.gong(t+.4);this.lastGong=t;}
+      this.nextT=t+1.6+Math.random()*1.6;
     }
   },
   stopBgmTimer(){clearInterval(this.bgmTimer);this.bgmTimer=null;},
@@ -564,7 +572,15 @@ const testKey=document.getElementById('testKey');
 const testPlaceholder=document.getElementById('testPlaceholder');
 const kbState=document.getElementById('kbState');
 const kbHint=document.getElementById('kbHint');
+const KB_HINT_DEFAULT='タイ語入力モードがONか確認します（英字が出たらモード切替が必要）・Shift でやり直し';
 testbox.addEventListener('keydown',e=>{
+  if(e.key==='Shift'){/* チェックを最初の状態に戻す */
+    kbVerified=false;
+    testKey.style.display='none';testPlaceholder.style.display='inline';
+    kbState.textContent='未確認';kbState.className='state idle';
+    kbHint.textContent=KB_HINT_DEFAULT;
+    refreshStart();return;
+  }
   if(e.key.length!==1||e.ctrlKey||e.metaKey||e.altKey)return;
   e.preventDefault();
   testPlaceholder.style.display='none';testKey.style.display='inline';testKey.textContent=e.key;

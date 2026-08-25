@@ -1,3 +1,3 @@
 # typingmaster
-Thai Typing Trainer (Kedmanee) — Moonoi Monsoon
+Thai Typing Master (Kedmanee) — Moonoi Monsoon
 https://moonoimonsoon.github.io/typingmaster/
