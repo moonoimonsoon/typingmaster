@@ -195,12 +195,12 @@
   a.ghost{text-decoration:none;display:inline-block}
 
   .note{font-size:11px;color:var(--muted);text-align:center;margin-top:18px;line-height:1.6}
-  .kedinfo{margin-top:10px}
-  .kedinfo summary{cursor:pointer;display:inline-block;color:var(--muted);
-    border-bottom:1px dotted var(--line);transition:.15s}
-  .kedinfo summary:hover{color:var(--lime)}
-  .kedinfo p{text-align:left;max-width:540px;margin:10px auto 0;line-height:1.8;
+  .kedlink{cursor:pointer;border-bottom:1px dotted var(--muted);transition:.15s}
+  .kedlink:hover{color:var(--lime);border-color:var(--lime)}
+  .kedbox{display:none;max-width:540px;margin:12px auto 0;text-align:left;
+    font-size:11px;color:var(--muted);line-height:1.8;
     background:#0c1206;border:1px solid var(--line);border-radius:10px;padding:12px 16px}
+  .kedbox.show{display:block}
   kbd{background:#0e1607;border:1px solid var(--line);border-radius:4px;padding:1px 6px;
     font-family:'Silkscreen';font-size:10px;color:var(--lime)}
 </style>
@@ -211,7 +211,17 @@
   <header>
     <div class="logo">◆ MOONOI MONSOON ◆</div>
     <h1>THAI TYPING<br>MASTER</h1>
-    <div class="sub">Kedmanee 配列 · タイ語タイピング練習</div>
+    <div class="sub"><span class="kedlink" id="kedLink">Kedmanee 配列</span> · タイ語タイピング練習</div>
+    <!-- 「Kedmanee 配列」クリックで開く解説 -->
+    <div class="kedbox" id="kedBox">
+      <p>タイ語のキー配列にはいくつか種類があり、いちばん広く使われているのが
+      Kedmanee（ケードマニー）配列です。1917年にタイプライター用として考案された
+      歴史ある配列で、タイの工業規格（TIS 820）にもなっています。よく使う文字を
+      そのまま押せる位置に、まれな文字をShift側に置くのが基本設計。ほかに打鍵効率を
+      重視したPattachote（パッタチョート）配列などもありますが、ほとんど普及していません。
+      WindowsやMac・iPhoneの標準タイ語キーボードも、タイで売られている物理キーボードの
+      刻印もKedmaneeなので、ここで覚えた指づかいはそのままどの端末でも使えます。</p>
+    </div>
   </header>
 
   <div id="select" class="panel">
@@ -328,16 +338,6 @@
   <div class="note" id="footNote">
     <kbd>Backspace</kbd> 打ち直し可 · <kbd>Esc</kbd> 中断 · 時間切れは不正解として次へ<br>
     苦手な文字の履歴は、このブラウザ内にだけ自動保存されます（他の端末とは共有されません）
-    <details class="kedinfo">
-      <summary>Kedmanee（ケードマニー）配列とは？</summary>
-      <p>タイ語のキー配列にはいくつか種類があり、いちばん広く使われているのが
-      Kedmanee配列です。1917年にタイプライター用として考案された歴史ある配列で、
-      タイの工業規格（TIS 820）にもなっています。よく使う文字をそのまま押せる位置に、
-      まれな文字をShift側に置くのが基本設計。ほかに打鍵効率を重視した
-      Pattachote（パッタチョート）配列などもありますが、ほとんど普及していません。
-      WindowsやMac・iPhoneの標準タイ語キーボードも、タイで売られている物理キーボードの
-      刻印もKedmaneeなので、ここで覚えた指づかいはそのままどの端末でも使えます。</p>
-    </details>
   </div>
 </div>
 
@@ -966,6 +966,9 @@ function paintAudioToggles(){
 bgmToggle.onclick=()=>{AUDIO.bgmOn=!AUDIO.bgmOn;AUDIO.save();paintAudioToggles();
   if(!AUDIO.bgmOn)AUDIO.stopBgm();};
 seToggle.onclick=()=>{AUDIO.seOn=!AUDIO.seOn;AUDIO.save();paintAudioToggles();};
+
+document.getElementById('kedLink').onclick=()=>{
+  document.getElementById('kedBox').classList.toggle('show');};
 
 /* init */
 AUDIO.load();
