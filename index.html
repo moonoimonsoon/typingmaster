@@ -882,8 +882,9 @@ function hintFor(s){
     if(GAME_DATA.preVowels.includes(s))return '前置母音 — 子音より先に打つ字';
     return '';
   }
+  /* 文章ではスペースの案内を最優先(前置母音の注意より重要。知らないと詰まる) */
+  if(s.includes(' '))return '「·」の位置ではスペースキーを押します';
   if(arr.some(c=>GAME_DATA.preVowels.includes(c)))return '※ 前置母音は見た目より先に打鍵';
-  if(s.includes(' '))return 'スペースも入力します（語の区切り）';
   return '';
 }
 /* 打鍵単位を表示用のかたまりにまとめる。1打鍵=1<span>だと上下の記号が
@@ -985,7 +986,8 @@ function commitTyped(newArr){
     if(want&&want!==' ')recordMiss(want,'wrong');
     FX.onMiss({want,got:newArr[i],pos:i});
     document.getElementById('status').textContent=
-      want?`${want} のところ違う字を入力`:'余分な入力です';
+      want===' '?'ここはスペース — 「·」はスペースの印です'
+      :(want?`${want} のところ違う字を入力`:'余分な入力です');
     updateHud();
     if(inputMethod==='touch'){
       typed=target.slice(0,i);pos=i;
