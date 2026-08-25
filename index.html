@@ -175,6 +175,15 @@
   .quitrow{text-align:center;margin-top:16px}
   .resetrow{text-align:right;margin-top:12px}
 
+  .audiorow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .atoggle{background:#0e1607;border:1px solid var(--line);border-radius:10px;padding:11px;
+    color:var(--ink);font-family:'Silkscreen';font-size:10px;letter-spacing:1px;
+    cursor:pointer;transition:.15s}
+  .atoggle:hover{border-color:var(--lime-dim)}
+  .atoggle.off{opacity:.4}
+  .statsrow{text-align:center;margin-top:12px}
+  a.ghost{text-decoration:none;display:inline-block}
+
   .note{font-size:11px;color:var(--muted);text-align:center;margin-top:18px;line-height:1.6}
   kbd{background:#0e1607;border:1px solid var(--line);border-radius:4px;padding:1px 6px;
     font-family:'Silkscreen';font-size:10px;color:var(--lime)}
@@ -225,7 +234,14 @@
       <div class="resetrow"><button class="ghost sm" id="resetBtn">記録をリセット</button></div>
     </div>
 
+    <div class="sectit" style="margin-top:16px">SOUND / サウンド</div>
+    <div class="audiorow">
+      <button class="atoggle" id="bgmToggle" type="button">♪ BGM: ON</button>
+      <button class="atoggle" id="seToggle" type="button">✦ 効果音: ON</button>
+    </div>
+
     <button class="startbtn" id="startBtn" disabled>入力方式とレベルを選択</button>
+    <div class="statsrow"><a class="ghost sm" href="stats.html">📊 きろくページ — 苦手の一覧・PDF</a></div>
   </div>
 
   <!-- GAME -->
@@ -282,6 +298,7 @@
     <div style="margin-top:18px">
       <button class="ghost" id="retryBtn">もう一度</button>
       <button class="ghost" id="backBtn">レベル選択へ</button>
+      <a class="ghost" href="stats.html">きろくページ</a>
     </div>
   </div>
 
@@ -356,9 +373,11 @@ async function loadExternalData(){
    このオブジェクトを差し替える（敵ダメージ、世界の前進など）。
    ================================================================ */
 const FX = {
-  onCorrect(ctx){ /* 1文字正解。ctx={char,pos,combo} */ },
+  onCorrect(ctx){ /* 1文字正解。ctx={char,pos,combo} */
+    AUDIO.se('ok');
+  },
   onMiss(ctx){    /* ミス。ctx={want,got,pos} */
-    flashBad(ctx.pos); shakePrompt();
+    flashBad(ctx.pos); shakePrompt(); AUDIO.se('ng');
   },
   onClear(ctx){   /* 1問完了。ctx={perfect,combo} */
     flashOk();
@@ -367,6 +386,116 @@ const FX = {
     const p=document.getElementById('prompt');
     p.classList.add('timeout');setTimeout(()=>p.classList.remove('timeout'),400);
   },
+};
+
+/* ================================================================
+   AUDIO — BGMと効果音
+   ----------------------------------------------------------------
+   音源ファイルは使わず、その場で音を合成する(著作権フリー・追加読込ゼロ)。
+   BGMはローイクラトンの夜のイメージ: ラナート(タイの木琴)風の五音音階の
+   つまびきに、低いゴングと残響。決まった曲ではなく毎回すこしずつ違う。
+   ブラウザは音の自動再生を禁止しているため、STARTボタン(ユーザー操作)で
+   音の装置を起こす。ON/OFFはlocalStorageに保存。
+   ================================================================ */
+const AUDIO_KEY='mm_thai_typing_audio_v1';
+/* ラ長調ふうの五音音階(2オクターブ)。タイ古典の雰囲気に寄せた選び */
+const BGM_SCALE=[349.23,392.00,440.00,523.25,587.33,698.46,783.99,880.00];
+const AUDIO={
+  ctx:null,bgmOn:true,seOn:true,bgmTimer:null,nextT:0,step:0,degree:3,
+  load(){try{const s=JSON.parse(localStorage.getItem(AUDIO_KEY));
+    if(s){this.bgmOn=s.bgm!==false;this.seOn=s.se!==false;}}catch(e){}},
+  save(){try{localStorage.setItem(AUDIO_KEY,JSON.stringify({bgm:this.bgmOn,se:this.seOn}));}catch(e){}},
+  init(){
+    if(this.ctx)return;
+    const C=window.AudioContext||window.webkitAudioContext;if(!C)return;
+    const c=this.ctx=new C();
+    this.seBus=c.createGain();this.seBus.gain.value=.5;this.seBus.connect(c.destination);
+    this.bgmOut=c.createGain();this.bgmOut.gain.value=0;this.bgmOut.connect(c.destination);
+    this.bgmBus=c.createGain();this.bgmBus.connect(this.bgmOut);
+    /* お寺の境内のような広がりをディレイで作る */
+    const d=c.createDelay(2);d.delayTime.value=.46;
+    const fb=c.createGain();fb.gain.value=.34;
+    const wet=c.createGain();wet.gain.value=.4;
+    this.bgmBus.connect(d);d.connect(fb);fb.connect(d);d.connect(wet);wet.connect(this.bgmOut);
+  },
+  resume(){if(this.ctx&&this.ctx.state==='suspended')this.ctx.resume();},
+  /* ラナート風: 三角波の短い打音＋わずかにずれた倍音 */
+  pluck(freq,when,vol){
+    const c=this.ctx;
+    [[0,'triangle',1],[7,'sine',.35]].forEach(([cents,type,mul])=>{
+      const o=c.createOscillator(),g=c.createGain();
+      o.type=type;o.frequency.value=freq*Math.pow(2,cents/1200);
+      g.gain.setValueAtTime(0,when);
+      g.gain.linearRampToValueAtTime(vol*mul,when+.01);
+      g.gain.exponentialRampToValueAtTime(.0001,when+1.1);
+      o.connect(g);g.connect(this.bgmBus);o.start(when);o.stop(when+1.2);
+    });
+  },
+  /* 低いゴング。フレーズの節目に */
+  gong(when){
+    const c=this.ctx;
+    [[65.4,.15],[98.1,.07],[130.8,.05]].forEach(([f,v])=>{
+      const o=c.createOscillator(),g=c.createGain();
+      o.type='sine';o.frequency.value=f;
+      g.gain.setValueAtTime(0,when);
+      g.gain.linearRampToValueAtTime(v,when+.02);
+      g.gain.exponentialRampToValueAtTime(.0001,when+3.5);
+      o.connect(g);g.connect(this.bgmBus);o.start(when);o.stop(when+3.6);
+    });
+  },
+  startBgm(){
+    if(!this.ctx||!this.bgmOn)return;
+    this.resume();this.stopBgmTimer();
+    this.nextT=this.ctx.currentTime+.15;this.step=0;this.degree=3;
+    const n=this.ctx.currentTime;
+    this.bgmOut.gain.cancelScheduledValues(n);
+    this.bgmOut.gain.setValueAtTime(this.bgmOut.gain.value,n);
+    this.bgmOut.gain.linearRampToValueAtTime(.16,n+1.2);
+    this.bgmTimer=setInterval(()=>this.schedule(),200);
+  },
+  /* 少し先まで音を予約しておく方式。休符まじりの音階の散歩 */
+  schedule(){
+    const STEP=.46;
+    while(this.nextT<this.ctx.currentTime+.5){
+      const t=this.nextT;
+      if(this.step%32===0)this.gong(t);
+      if(Math.random()<.72){
+        const move=[-2,-1,-1,1,1,2][Math.floor(Math.random()*6)];
+        this.degree=Math.max(0,Math.min(BGM_SCALE.length-1,this.degree+move));
+        this.pluck(BGM_SCALE[this.degree],t,.09);
+        if(Math.random()<.18)this.pluck(BGM_SCALE[Math.max(0,this.degree-2)],t+STEP/2,.05);
+      }
+      this.step++;this.nextT+=STEP;
+    }
+  },
+  stopBgmTimer(){clearInterval(this.bgmTimer);this.bgmTimer=null;},
+  stopBgm(){
+    if(!this.ctx)return;
+    this.stopBgmTimer();
+    const n=this.ctx.currentTime;
+    this.bgmOut.gain.cancelScheduledValues(n);
+    this.bgmOut.gain.setValueAtTime(this.bgmOut.gain.value,n);
+    this.bgmOut.gain.linearRampToValueAtTime(0,n+.8);
+  },
+  /* 効果音: 正解=短く明るい打音 / 不正解=低くこもった音 */
+  se(kind){
+    if(!this.seOn||!this.ctx)return;this.resume();
+    const c=this.ctx,t=c.currentTime;
+    const o=c.createOscillator(),g=c.createGain();
+    if(kind==='ok'){
+      o.type='triangle';
+      o.frequency.value=1046.5*Math.pow(2,(Math.random()*30-15)/1200);
+      g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.15,t+.004);
+      g.gain.exponentialRampToValueAtTime(.0001,t+.11);
+      o.connect(g);g.connect(this.seBus);o.start(t);o.stop(t+.13);
+    }else{
+      o.type='square';
+      o.frequency.setValueAtTime(150,t);o.frequency.exponentialRampToValueAtTime(95,t+.08);
+      g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.07,t+.006);
+      g.gain.exponentialRampToValueAtTime(.0001,t+.1);
+      o.connect(g);g.connect(this.seBus);o.start(t);o.stop(t+.11);
+    }
+  }
 };
 
 /* ================================================================ STATE */
@@ -390,6 +519,15 @@ function saveWeak(){try{
     all[c].couldnt+=weak[c].couldnt;all[c].wrong+=weak[c].wrong;all[c].total+=weak[c].total;
   }
   localStorage.setItem(STORE_KEY,JSON.stringify(all));
+}catch(e){}}
+/* 完走した回を1行ずつ履歴に残す(きろくページ stats.html が読む)。中断した回は残さない */
+const LOG_KEY='mm_thai_typing_log_v1';
+function appendLog(acc,cpm){try{
+  const a=JSON.parse(localStorage.getItem(LOG_KEY)||'[]');
+  a.push({t:Date.now(),lv:level.id,im:inputMethod,q:queue.length,
+    keys:totalKeys,ok:correctKeys,acc,cpm,combo:maxCombo});
+  while(a.length>1000)a.shift();
+  localStorage.setItem(LOG_KEY,JSON.stringify(a));
 }catch(e){}}
 
 /* ================================================================ DEVICE */
@@ -504,6 +642,7 @@ function start(id){
   qi=0;combo=0;maxCombo=0;totalKeys=0;correctKeys=0;weak={};kbBad=false;transitioning=false;
   startTime=performance.now();
   updateHud();/* 表示を初期化。しないと1打目まで前回のACC/COMBOが残る */
+  AUDIO.init();AUDIO.startBgm();/* STARTのクリック=ユーザー操作なので音を出せる */
   elSelect.style.display='none';elResults.style.display='none';elGame.style.display='block';
   document.getElementById('hT').textContent=queue.length;
   tapcue.classList.toggle('show', inputMethod==='touch');
@@ -686,7 +825,7 @@ function hideKbWarn(){if(!kbBad)return;kbBad=false;kbwarn.classList.remove('show
 function abortGame(){
   /* 予約済みの「次の問題へ」も取り消す。残すと中断後も裏でゲームが進み続ける */
   clearTimeout(pendingNext);pendingNext=null;
-  stopTimer();transitioning=true;
+  stopTimer();transitioning=true;AUDIO.stopBgm();
   elGame.style.display='none';elSelect.style.display='block';
   tapcue.classList.remove('show');kbwarn.classList.remove('show');kbBad=false;
   document.getElementById('footNote').style.display='block';
@@ -712,10 +851,11 @@ function flashOk(){const p=document.getElementById('prompt');
 
 /* ================================================================ RESULTS */
 function finish(){
-  stopTimer();document.getElementById('bar').style.width='100%';saveWeak();
+  stopTimer();document.getElementById('bar').style.width='100%';saveWeak();AUDIO.stopBgm();
   const acc=totalKeys?Math.round(correctKeys/totalKeys*100):100;
   const mins=(performance.now()-startTime)/60000;
   const cpm=mins>0?Math.round(correctKeys/mins):0;
+  appendLog(acc,cpm);
   document.getElementById('rAcc').textContent=acc+'%';
   document.getElementById('rWpm').textContent=cpm;
   document.getElementById('rCombo').textContent=maxCombo;
@@ -772,7 +912,22 @@ function shuffle(a){a=[...a];for(let i=a.length-1;i>0;i--){
   e.style.animationDuration=(6+Math.random()*8)+'s';e.style.animationDelay=(Math.random()*8)+'s';
   document.body.appendChild(e);}})();
 
+/* ================================================================ AUDIO UI */
+const bgmToggle=document.getElementById('bgmToggle');
+const seToggle=document.getElementById('seToggle');
+function paintAudioToggles(){
+  bgmToggle.textContent='♪ BGM: '+(AUDIO.bgmOn?'ON':'OFF');
+  bgmToggle.classList.toggle('off',!AUDIO.bgmOn);
+  seToggle.textContent='✦ 効果音: '+(AUDIO.seOn?'ON':'OFF');
+  seToggle.classList.toggle('off',!AUDIO.seOn);
+}
+bgmToggle.onclick=()=>{AUDIO.bgmOn=!AUDIO.bgmOn;AUDIO.save();paintAudioToggles();
+  if(!AUDIO.bgmOn)AUDIO.stopBgm();};
+seToggle.onclick=()=>{AUDIO.seOn=!AUDIO.seOn;AUDIO.save();paintAudioToggles();};
+
 /* init */
+AUDIO.load();
+paintAudioToggles();
 buildLevelGrid();
 renderCumWeak();
 loadExternalData();
