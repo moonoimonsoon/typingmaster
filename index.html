@@ -262,13 +262,12 @@
     <div id="kbsec">
     <div class="sectit" style="margin-top:16px">KEYBOARD CHECK / スタート前チェック<span class="req">必須</span></div>
     <div class="kbcheck" id="kbcheck">
-      <div class="label">下の枠をクリックして <b style="color:var(--lime)">ก</b> キーを押す</div>
       <div class="testbox" id="testbox" tabindex="0">
-        <span id="testPlaceholder" style="color:var(--muted);font-size:13px">ここをクリックして ก キーを押す</span>
+        <span id="testPlaceholder" style="color:var(--muted);font-size:14px">ここをクリックして <b style="color:var(--lime)">ก</b> キーを押す</span>
         <span class="key" id="testKey" style="display:none"></span>
       </div>
       <div class="state idle" id="kbState">未確認</div>
-      <div class="hintline" id="kbHint">タイ語入力モードがONか確認します（英字が出たらモード切替が必要）・Backspace で消せます</div>
+      <div class="hintline" id="kbHint"></div>
     </div>
     </div>
 
@@ -759,7 +758,7 @@ const testKey=document.getElementById('testKey');
 const testPlaceholder=document.getElementById('testPlaceholder');
 const kbState=document.getElementById('kbState');
 const kbHint=document.getElementById('kbHint');
-const KB_HINT_DEFAULT='タイ語入力モードがONか確認します（英字が出たらモード切替が必要）・Backspace で消せます';
+const KB_HINT_DEFAULT='';/* ふだんは何も出さない。NG/OK時のメッセージだけこの枠に出す */
 testbox.addEventListener('keydown',e=>{
   if(e.key==='Backspace'||e.key==='Delete'){/* 表示を消して最初の状態に戻す */
     e.preventDefault();
