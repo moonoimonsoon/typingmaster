@@ -302,7 +302,8 @@
    ================================================================ */
 const GAME_DATA = {
   preVowels: ['เ','แ','โ','ไ','ใ'],
-  timePerKind: { char:30, word:30, mix:30, sentence:45 },
+  /* 制限時間(秒) = base + perKey × その問題の打鍵数。外部JSONでも調整可 */
+  timeRule: { base:10, perKey:3.5 },
   levels: [
     { id:'home', ln:'LV.1', t:'ホームポジション', d:'基本の指の位置・よく使う子音',
       chars:'ฟหกดเ้่าสว', kind:'char', physicalFocus:true,
@@ -342,7 +343,7 @@ async function loadExternalData(){
     if(!res.ok)return;
     const ext=await res.json();
     if(ext.levels)GAME_DATA.levels=ext.levels;
-    if(ext.timePerKind)GAME_DATA.timePerKind=ext.timePerKind;
+    if(ext.timeRule)GAME_DATA.timeRule=ext.timeRule;
     if(ext.preVowels)GAME_DATA.preVowels=ext.preVowels;
     buildLevelGrid(); /* 再描画 */
   }catch(e){/* 無ければ内蔵データで続行 */}
@@ -496,7 +497,6 @@ function levelPool(l){
 
 function start(id){
   level=GAME_DATA.levels.find(l=>l.id===id);
-  qLimit=GAME_DATA.timePerKind[level.kind]||30;
   let pool=levelPool(level);
   if(pool.length<10)pool=[...pool,...pool];
   const count=(level.kind==='sentence')?Math.min(7,pool.length):10;
@@ -524,6 +524,7 @@ function loadQuestion(){
   document.getElementById('status').textContent='打ち始めてください';
   document.getElementById('hint').textContent=hintFor(queue[qi]);
   if(inputMethod==='touch'){touchInput.value='';}
+  qLimit=timeLimitFor(queue[qi]);
   startTimer(qLimit);
 }
 function hintFor(s){
@@ -561,6 +562,11 @@ function renderTyped(){
 
 /* ================================================================ TIMER
    pause/resume対応。kbwarn復帰時は残り時間を保持して再開 */
+/* 一律の制限時間だと1文字は余りすぎ・長文は足りないため、打鍵数に比例させる */
+function timeLimitFor(s){
+  const r=GAME_DATA.timeRule||{base:10,perKey:3.5};
+  return Math.ceil(r.base + r.perKey*[...s].length);
+}
 function startTimer(seconds){
   clearInterval(timerId);timeLeft=seconds;timerEnd=performance.now()+seconds*1000;
   updateTimer();timerId=setInterval(tick,100);
@@ -580,10 +586,12 @@ function updateTimer(){
   const pct=Math.max(0,timeLeft/qLimit*100);
   const fill=document.getElementById('timerFill');
   fill.style.width=pct+'%';
-  fill.className='tf'+(timeLeft<=5?' crit':(timeLeft<=10?' warn':''));
+  /* 警告色の切り替えも制限時間に比例させる（短い問題が最初から警告色になるのを防ぐ） */
+  const critAt=Math.min(5,qLimit*0.2), warnAt=Math.min(10,qLimit*0.4);
+  fill.className='tf'+(timeLeft<=critAt?' crit':(timeLeft<=warnAt?' warn':''));
   const tt=document.getElementById('timerText');
   tt.textContent=timeLeft.toFixed(1)+'s';
-  tt.className='timertext'+(timeLeft<=5?' crit':'');
+  tt.className='timertext'+(timeLeft<=critAt?' crit':'');
 }
 function timeout(){
   stopTimer();
