@@ -48,6 +48,9 @@
   .im .id{font-size:11px;color:var(--muted);line-height:1.4}
   .im .rec{font-family:'Silkscreen';font-size:9px;color:var(--ember);margin-top:5px;letter-spacing:1px}
   .sectit{font-family:'Silkscreen';font-size:10px;color:var(--lime-dim);letter-spacing:1px;margin-bottom:8px}
+  .req{font-size:10px;color:#0a0f04;background:var(--ember);border-radius:4px;
+    padding:1px 7px;margin-left:8px;font-weight:700;letter-spacing:1px}
+  #kbsec.hidden{display:none}
 
   .levels{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .lvl{background:#0e1607;border:1px solid var(--line);border-radius:10px;
@@ -67,9 +70,8 @@
   .startbtn:hover{box-shadow:0 0 22px rgba(159,217,42,.5);transform:translateY(-1px)}
   .startbtn:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
 
-  .kbcheck{margin-top:16px;background:#0c1206;border:1px solid var(--line);
+  .kbcheck{background:#0c1206;border:1px solid var(--line);
     border-radius:10px;padding:16px;text-align:center}
-  .kbcheck.hidden{display:none}
   .kbcheck .label{font-size:13px;color:var(--muted);margin-bottom:10px}
   .kbcheck .testbox{font-size:15px;color:var(--ink);background:#0a0f04;
     border:1px dashed var(--line);border-radius:8px;padding:12px;margin-bottom:8px;
@@ -82,10 +84,10 @@
   .kbcheck .hintline{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5}
 
   /* cumulative weak-key panel (start screen) */
-  .cumweak{margin-top:16px;background:#0c1206;border:1px solid var(--line);
-    border-radius:10px;padding:16px;display:none}
-  .cumweak.show{display:block}
-  .cumweak h3{font-size:13px;color:var(--ink);margin-bottom:10px;font-weight:600}
+  #cumsec{display:none}
+  #cumsec.show{display:block}
+  .cumweak{background:#0c1206;border:1px solid var(--line);
+    border-radius:10px;padding:16px}
   .cumweak .sub2{font-size:11px;color:var(--muted);margin-bottom:10px}
 
   #game{display:none}
@@ -216,8 +218,10 @@
     <div class="sectit">LEVEL / レベル</div>
     <div class="levels" id="levelGrid"></div>
 
+    <div id="kbsec">
+    <div class="sectit" style="margin-top:16px">KEYBOARD CHECK / スタート前チェック<span class="req">必須</span></div>
     <div class="kbcheck" id="kbcheck">
-      <div class="label">スタート前チェック：下の枠をクリックして <b style="color:var(--lime)">ก</b> を打つ</div>
+      <div class="label">下の枠をクリックして <b style="color:var(--lime)">ก</b> キーを押す</div>
       <div class="testbox" id="testbox" tabindex="0">
         <span id="testPlaceholder" style="color:var(--muted);font-size:13px">ここをクリックして ก キーを押す</span>
         <span class="key" id="testKey" style="display:none"></span>
@@ -225,13 +229,16 @@
       <div class="state idle" id="kbState">未確認</div>
       <div class="hintline" id="kbHint">タイ語入力モードがONか確認します（英字が出たらモード切替が必要）</div>
     </div>
+    </div>
 
     <!-- 累積の苦手キー（localStorageにデータがあるときだけ表示） -->
+    <div id="cumsec">
+    <div class="sectit" style="margin-top:16px">WEAK KEYS / 累積の苦手トップ5</div>
     <div class="cumweak" id="cumweak">
-      <h3>累積の苦手トップ5</h3>
       <div class="sub2">これまでの全プレイの記録から</div>
       <div id="cumList"></div>
       <div class="resetrow"><button class="ghost sm" id="resetBtn">記録をリセット</button></div>
+    </div>
     </div>
 
     <div class="sectit" style="margin-top:16px">SOUND / サウンド</div>
@@ -537,7 +544,7 @@ const likelyTouch = coarse && touchy;
 
 /* ================================================================ INPUT METHOD */
 const imRow=document.getElementById('imRow');
-const kbcheck=document.getElementById('kbcheck');
+const kbsec=document.getElementById('kbsec');/* 見出しラベルごと隠すため枠全体を持つ */
 document.getElementById('recPhys').textContent = likelyTouch ? '' : '推奨';
 document.getElementById('recTouch').textContent = likelyTouch ? '推奨' : '';
 imRow.querySelectorAll('.im').forEach(el=>{
@@ -545,7 +552,7 @@ imRow.querySelectorAll('.im').forEach(el=>{
     imRow.querySelectorAll('.im').forEach(x=>x.classList.remove('sel'));
     el.classList.add('sel');
     inputMethod=el.dataset.im;
-    kbcheck.classList.toggle('hidden', inputMethod!=='physical');
+    kbsec.classList.toggle('hidden', inputMethod!=='physical');
     updateLevelDim();refreshStart();
   };
 });
@@ -878,7 +885,7 @@ function renderWeak(data,box){
 /* スタート画面: 累積苦手トップ5（データがあるときだけ表示） */
 function renderCumWeak(){
   const all=loadWeakAll();
-  const panel=document.getElementById('cumweak');
+  const panel=document.getElementById('cumsec');/* ラベルごと出し入れする */
   if(!all||Object.keys(all).length===0){panel.classList.remove('show');return;}
   renderWeak(all,document.getElementById('cumList'));
   panel.classList.add('show');
