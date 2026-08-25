@@ -197,7 +197,11 @@
   .note{font-size:11px;color:var(--muted);text-align:center;margin-top:18px;line-height:1.6}
   .kedlink{cursor:pointer;display:inline-block;border:1px solid var(--line);border-radius:999px;
     padding:4px 14px;transition:.15s}
+  .kedlink .q{display:inline-flex;align-items:center;justify-content:center;
+    width:15px;height:15px;margin-left:7px;border:1px solid var(--muted);border-radius:50%;
+    font-size:10px;vertical-align:1px}
   .kedlink:hover{color:var(--lime);border-color:var(--lime)}
+  .kedlink:hover .q{border-color:var(--lime)}
   .kedbox{display:none;max-width:540px;margin:12px auto 0;text-align:left;
     font-size:11px;color:var(--muted);line-height:1.8;
     background:#0c1206;border:1px solid var(--line);border-radius:10px;padding:12px 16px}
@@ -212,12 +216,13 @@
   <header>
     <div class="logo">◆ MOONOI MONSOON ◆</div>
     <h1>THAI TYPING<br>MASTER</h1>
-    <div class="sub"><span class="kedlink" id="kedLink">Kedmanee 配列とは？</span></div>
+    <div class="sub"><span class="kedlink" id="kedLink">Kedmanee 配列準拠<span class="q">?</span></span></div>
     <!-- 「Kedmanee 配列」クリックで開く解説 -->
     <div class="kedbox" id="kedBox">
-      <p>タイ語のキー配列にはいくつか種類があり、いちばん広く使われているのが
-      Kedmanee（ケードマニー）配列です。名前の由来はタイ語の苗字で、タイプライター時代の
-      1930年代にレミントン社のタイ人スタッフとして配列を改良した
+      <p>このアプリの出題と判定は、すべてKedmanee（ケードマニー）配列を前提にしています。
+      タイ語のキー配列にはいくつか種類があり、いちばん広く使われているのがこのKedmanee配列です。
+      名前の由来はタイ語の苗字で、1930年代に、タイプライターの製造で知られた
+      アメリカのレミントン社でタイ人スタッフとして配列を改良した
       スワンプラスート・ケードマニー（สุวรรณประเสริฐ เกษมณี）さんにちなみます。
       よく使う文字をそのまま押せる位置に、まれな文字をShift側に置くのが基本設計で、
       タイの工業規格（TIS 820）にもなっています。ほかに打鍵効率を重視した
