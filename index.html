@@ -180,10 +180,11 @@
     border-radius:9px;padding:12px 22px;font-family:'Silkscreen';font-size:12px;cursor:pointer;margin:6px;transition:.15s}
   .ghost:hover{border-color:var(--lime);color:var(--lime)}
   .ghost.sm{padding:8px 16px;font-size:10px;color:var(--muted);margin:0}
-  .ghost.sm:hover{border-color:var(--ng);color:var(--ng)}
+  .ghost.sm:hover{border-color:var(--cyan);color:var(--cyan)}
+  .ghost.sm.danger:hover{border-color:var(--ng);color:var(--ng)}
   .ghost.sm.armed{border-color:var(--ng);color:var(--ng)}
   .quitrow{text-align:center;margin-top:16px}
-  .resetrow{text-align:right;margin-top:12px}
+  .resetrow{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
 
   .audiorow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .atoggle{background:#0e1607;border:1px solid var(--line);border-radius:10px;padding:11px;
@@ -191,7 +192,6 @@
     cursor:pointer;transition:.15s}
   .atoggle:hover{border-color:var(--lime-dim)}
   .atoggle.off{opacity:.4}
-  .statsrow{text-align:center;margin-top:12px}
   a.ghost{text-decoration:none;display:inline-block}
 
   .note{font-size:11px;color:var(--muted);text-align:center;margin-top:18px;line-height:1.6}
@@ -251,7 +251,10 @@
     <div class="cumweak" id="cumweak">
       <div class="sub2">これまでの全プレイの記録から</div>
       <div id="cumList"></div>
-      <div class="resetrow"><button class="ghost sm" id="resetBtn">記録をリセット</button></div>
+      <div class="resetrow">
+        <a class="ghost sm" href="stats.html">📊 きろくを出力</a>
+        <button class="ghost sm danger" id="resetBtn">記録をリセット</button>
+      </div>
     </div>
     </div>
 
@@ -262,7 +265,6 @@
     </div>
 
     <button class="startbtn" id="startBtn" disabled>入力方式とレベルを選択</button>
-    <div class="statsrow"><a class="ghost sm" href="stats.html">📊 きろくページ — 苦手の一覧・PDF</a></div>
   </div>
 
   <!-- GAME -->
